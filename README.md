@@ -73,6 +73,10 @@ You need **all** of these. The scripts check most of them and stop if something 
 - **the case open** on the bench, because you need the internal **JP2 micro-USB** for adb on Android
   10's first boot. A 3.3 V USB-serial adapter on the debug UART is strongly recommended.
 
+<a href="docs/HARDWARE.md#getting-inside"><img src="docs/img/board-overview.jpg" width="600" alt="Inside the H10-3: debug UART, RECOVER button, JP2 adb port and backup LiPo marked"></a>
+
+*Inside the H10-3: everything you need is in the bottom-right corner of the board. Details in [HARDWARE.md](docs/HARDWARE.md#getting-inside).*
+
 ## Getting started
 
 1. Read **[docs/INSTALL.md](docs/INSTALL.md)** end to end before starting.
