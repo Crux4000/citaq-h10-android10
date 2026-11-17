@@ -1,0 +1,245 @@
+# /config/packages/kiosk.yaml  - Home Assistant package for the Citaq H10-3
+# Receipt printer, LEDs and app relaunch over adb.
+# Needs: the Android Debug Bridge integration pointed at the terminal (<ip>:5555), giving
+# media_player.kiosk (rename to match yours), and /config/kiosk/kiosk_print.py (+ Pillow for images).
+# Works on stock Android 5.1 and on the Android 10 port (citaq-boot.sh sets up ttyS1 + LED GPIOs).
+
+input_text:
+  kiosk_print_text:
+    name: Kiosk print text
+    max: 255
+  kiosk_image_url:
+    name: Kiosk image URL
+    max: 255
+  kiosk_qr_text:
+    name: Kiosk QR text
+    max: 255
+
+input_select:
+  kiosk_print_size:
+    name: Kiosk text size
+    options: [normal, tall, wide, big]
+  kiosk_print_align:
+    name: Kiosk alignment
+    options: [left, centre, right]
+  kiosk_image:
+    name: Kiosk image
+    options: ["(press refresh)"]
+
+input_boolean:
+  kiosk_print_bold:
+    name: Kiosk bold
+  kiosk_print_cut:
+    name: Kiosk cut after printing
+    initial: true
+
+input_number:
+  kiosk_qr_size:
+    name: Kiosk QR size
+    min: 2
+    max: 16
+    step: 1
+    initial: 8
+    mode: slider
+
+shell_command:
+  kiosk_build: >-
+    python3 /config/kiosk/kiosk_print.py {{ mode }} {{ data | default('') | string | base64_encode }}
+    --size {{ size | default('normal') }} --align {{ align | default('left') }}
+    --bold {{ bold | default('off') }} --cut {{ cut | default('on') }}
+    --qrsize {{ qrsize | default(8) | int }}
+  kiosk_list_images: python3 /config/kiosk/kiosk_print.py list
+
+script:
+  # Core: build a job on HA, push it to the terminal, send it to the printer.
+  # Call this from automations, e.g. mode: text, data: "Washing done!"
+  kiosk_job:
+    alias: Kiosk print job
+    mode: queued
+    fields:
+      mode:
+        description: text, image or qr
+        example: text
+      data:
+        description: Text, QR content, or image (URL / file name in /media/kiosk)
+      size:
+        example: normal
+      align:
+        example: left
+      bold:
+        example: "off"
+      cut:
+        example: "on"
+      qrsize:
+        example: 8
+    sequence:
+      - action: shell_command.kiosk_build
+        data:
+          mode: "{{ mode | default('text') }}"
+          data: "{{ data | default('') }}"
+          size: "{{ size | default('normal') }}"
+          align: "{{ align | default('left') }}"
+          bold: "{{ bold | default('off') }}"
+          cut: "{{ cut | default('on') }}"
+          qrsize: "{{ qrsize | default(8) | int }}"
+        response_variable: build
+        continue_on_error: true
+      - if:
+          - condition: template
+            value_template: "{{ build is not defined or build.returncode != 0 }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              title: Kiosk print failed
+              message: "{{ build.stderr if build is defined else 'build step failed - check the logs' }}"
+          - stop: Print job failed
+      - action: androidtv.upload
+        target:
+          entity_id: media_player.kiosk
+        data:
+          local_path: /config/kiosk/job.bin
+          device_path: /data/local/tmp/job.bin
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: >-
+            busybox stty -F /dev/ttyS1 115200 raw -echo crtscts;
+            cat /data/local/tmp/job.bin > /dev/ttyS1
+
+  kiosk_print_from_dashboard:
+    alias: Kiosk print (dashboard text)
+    sequence:
+      - action: script.kiosk_job
+        data:
+          mode: text
+          data: "{{ states('input_text.kiosk_print_text') }}"
+          size: "{{ states('input_select.kiosk_print_size') }}"
+          align: "{{ states('input_select.kiosk_print_align') }}"
+          bold: "{{ states('input_boolean.kiosk_print_bold') }}"
+          cut: "{{ states('input_boolean.kiosk_print_cut') }}"
+
+  kiosk_print_test_page:
+    alias: Kiosk test page
+    sequence:
+      - action: script.kiosk_job
+        data:
+          mode: text
+          size: big
+          align: centre
+          bold: "on"
+          cut: "off"
+          data: "HOME ASSISTANT"
+      - action: script.kiosk_job
+        data:
+          mode: text
+          align: centre
+          data: "{{ now().strftime('%A %d %B %Y  %H:%M') }}\\nKiosk printer is alive.\\n"
+
+  kiosk_print_selected_image:
+    alias: Kiosk print selected image
+    sequence:
+      - action: script.kiosk_job
+        data:
+          mode: image
+          data: "{{ states('input_select.kiosk_image') }}"
+          align: "{{ states('input_select.kiosk_print_align') }}"
+          cut: "{{ states('input_boolean.kiosk_print_cut') }}"
+
+  kiosk_print_image_url:
+    alias: Kiosk print image from URL
+    sequence:
+      - action: script.kiosk_job
+        data:
+          mode: image
+          data: "{{ states('input_text.kiosk_image_url') }}"
+          align: "{{ states('input_select.kiosk_print_align') }}"
+          cut: "{{ states('input_boolean.kiosk_print_cut') }}"
+
+  kiosk_print_qr:
+    alias: Kiosk print QR code
+    sequence:
+      - action: script.kiosk_job
+        data:
+          mode: qr
+          data: "{{ states('input_text.kiosk_qr_text') }}"
+          qrsize: "{{ states('input_number.kiosk_qr_size') | int }}"
+          align: centre
+          cut: "{{ states('input_boolean.kiosk_print_cut') }}"
+
+  kiosk_refresh_images:
+    alias: Kiosk refresh image list
+    sequence:
+      - action: shell_command.kiosk_list_images
+        response_variable: listing
+      - action: input_select.set_options
+        target:
+          entity_id: input_select.kiosk_image
+        data:
+          options: "{{ listing.stdout | from_json }}"
+
+  kiosk_paper_feed:
+    alias: Kiosk feed paper
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: "busybox printf '\\033d\\005' > /dev/ttyS1"
+
+  kiosk_paper_cut:
+    alias: Kiosk cut paper
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: "busybox printf '\\033d\\003\\035VB\\000' > /dev/ttyS1"
+
+  kiosk_drawer_kick:
+    alias: Kiosk cash drawer kick
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: "busybox printf '\\033p\\000\\200\\200' > /dev/ttyS1"
+
+  # LEDs: red = gpio124, blue = gpio106 (1 = on)
+  kiosk_led:
+    alias: Kiosk LED
+    fields:
+      colour:
+        example: red
+      state:
+        example: "on"
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: >-
+            echo {{ 1 if state | default('on') in ['on', true, 1, '1'] else 0 }}
+            > /sys/class/gpio/gpio{{ 124 if colour | default('red') == 'red' else 106 }}/value
+
+  kiosk_relaunch_app:
+    alias: Kiosk relaunch HA app
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          # (monkey aborts on the Android 10 port: "SYS_KEYS has no physical keys")
+          command: >-
+            am force-stop io.homeassistant.companion.android;
+            am start -n io.homeassistant.companion.android/.launch.LaunchActivity
+
+automation:
+  - id: kiosk_refresh_images_on_start
+    alias: Kiosk refresh image list on start
+    triggers:
+      - trigger: homeassistant
+        event: start
+    actions:
+      - delay: 30
+      - action: script.kiosk_refresh_images

@@ -1,0 +1,14 @@
+# firmware, dumps and build output - never commit these
+*.img
+*.zip
+*.ko
+*.dtb
+*.jar
+*.apk
+super.img*
+*.tmp
+px5/
+src/out/
+src/thermalstub/out/
+tools/rkio
+__pycache__/

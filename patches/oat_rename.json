@@ -1,0 +1,8 @@
+{
+  "after": ["services_patch.json"],
+  "renames": [
+    {"dir": "system/system/framework/oat/arm64", "old": "services.odex", "new": "services.odeX"},
+    {"dir": "system/system/framework/oat/arm64", "old": "services.vdex", "new": "services.vdeX"},
+    {"dir": "system/system/framework/oat/arm64", "old": "services.art",  "new": "services.arX"}
+  ]
+}
