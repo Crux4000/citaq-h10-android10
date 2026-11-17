@@ -49,15 +49,18 @@ The PX5 kernel *wants* the OTG port in host mode, and that setting survives a wa
 it in device mode, but if you ever boot a DTB without that (e.g. the first-light test), JP2 can
 stay in host mode afterwards. Fix: cold power cycle (24 V **and** LiPo out).
 
-## After a battery pull: blank screen, no touch, no Wi-Fi
+## After a battery pull or a back-switch power-off: blank screen, no touch, no Wi-Fi, no sound
 
 There's no PMIC driver in the PX5 kernel, so the RK818 keeps whatever state it was last programmed
 to. A battery pull resets it to factory defaults: the LCD logic and touch supplies switch off, the
-Wi-Fi 32 kHz clock stops, and the charger limits change. Wi-Fi and the audio codec then get probed with
-no power and fail. `citaq-boot.sh` detects this and puts the
-stock values back on every boot and re-probes the Wi-Fi and audio codec, so it fixes itself. Turning the
-terminal off with the back switch does a full PMIC power-off too, so this happens on every cold boot. If it doesn't, check `/data/citaq/rk818.log`
-and that `/data/citaq/ilits` exists. See [HARDWARE.md](HARDWARE.md#rk818-pmic) for the registers.
+Wi-Fi 32 kHz clock stops, and the charger limits change. Turning the terminal off with the back
+switch is a full PMIC power-off too, so the same thing happens on every cold boot. The Wi-Fi chip
+and the RT5651 audio codec then get probed with no power and fail.
+
+`citaq-boot.sh` detects this, puts the stock values back, and re-probes Wi-Fi and the audio codec on
+every boot, so it fixes itself. If it doesn't, check `/data/citaq/rk818.log` (it should end with
+`rt5651 codec bound (sound card: ok)` after a cold boot) and that `/data/citaq/ilits` exists. See
+[HARDWARE.md](HARDWARE.md#rk818-pmic) for the registers.
 
 ## Worst case: nothing boots at all
 
