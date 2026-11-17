@@ -35,6 +35,17 @@ if [ "$pmic_reset" = 1 ]; then
   rmmod bcmdhd 2>/dev/null
   echo "$(date) sdio host rebound after PMIC reset" >> /data/citaq/rk818.log
 fi
+# 00b3) Same story for the RT5651 audio codec (I2C1 @0x1a): after a PMIC reset it was probed unpowered, the probe
+#      failed, and the sound card stays deferred waiting for it -> no sound card at all. Bind it now that the rails
+#      are back; the card registers straight after. (A power-off from the back switch also resets the PMIC.)
+if [ ! -e /sys/bus/i2c/devices/1-001a/driver ]; then
+  echo 1-001a > /sys/bus/i2c/drivers/rt5651/bind 2>/dev/null
+  for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /dev/snd/controlC0 ] && break; sleep 0.3; done
+  echo "$(date) rt5651 codec bound (sound card: $([ -e /dev/snd/controlC0 ] && echo ok || echo MISSING))" >> /data/citaq/rk818.log
+fi
+# 00b4) tee-supplicant talks to an OP-TEE the Citaq's trust firmware doesn't have: it exits, init restarts it every
+#      5 s forever, and each attempt logs an error - flooding the kernel log. Nothing on this build needs it.
+stop tee-supplicant
 # 00c) RK818 charger back to the stock Citaq limits (citaq310.dts battery node): 4.05 V / 1.0 A charge
 #      (CHRG_CTRL_REG1 0xa3 = EN|4050|1000 = 0x80; OTP default 0xb5 = 4.2 V / 2.0 A, too hard for a 1600 mAh pack),
 #      input current limit 3000 mA (USB_CTRL 0xa1 low nibble 0xb; OTP default 0 = 450 mA).

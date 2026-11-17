@@ -53,8 +53,10 @@ stay in host mode afterwards. Fix: cold power cycle (24 V **and** LiPo out).
 
 There's no PMIC driver in the PX5 kernel, so the RK818 keeps whatever state it was last programmed
 to. A battery pull resets it to factory defaults: the LCD logic and touch supplies switch off, the
-Wi-Fi 32 kHz clock stops, and the charger limits change. `citaq-boot.sh` detects this and puts the
-stock values back on every boot, so it fixes itself. If it doesn't, check `/data/citaq/rk818.log`
+Wi-Fi 32 kHz clock stops, and the charger limits change. Wi-Fi and the audio codec then get probed with
+no power and fail. `citaq-boot.sh` detects this and puts the
+stock values back on every boot and re-probes the Wi-Fi and audio codec, so it fixes itself. Turning the
+terminal off with the back switch does a full PMIC power-off too, so this happens on every cold boot. If it doesn't, check `/data/citaq/rk818.log`
 and that `/data/citaq/ilits` exists. See [HARDWARE.md](HARDWARE.md#rk818-pmic) for the registers.
 
 ## Worst case: nothing boots at all
