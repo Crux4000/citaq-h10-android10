@@ -4,6 +4,19 @@ Everything below was read from a live terminal (stock 5.1 and the Android 10 por
 device tree, or the stock POSFactory test app. Board: **CTE-RK3368-V1.0**. On the H10-3 the compute
 board sits **behind the screen**, not in the base.
 
+## Getting inside
+
+The compute board sits behind the screen. Everything you need for the port is in its bottom-right corner.
+
+![Citaq H10-3 compute board with the debug UART, RECOVER button, JP2 adb port and backup LiPo marked](img/board-overview.jpg)
+
+**Debug UART close-up.** TX and RX are labelled from the *board's* side, so wire adapter **RX → TP17**,
+adapter **TX → TP18** and **GND → TP19**. Thin wires soldered to the pads are much easier than holding
+probes during a boot. If nothing shows up in your terminal, swap the TP17/TP18 wires; doing that is
+harmless. CN3/CN7 are empty footprints and aren't needed.
+
+![TP17 = TX, TP18 = RX, TP19 = GND next to the RECOVER and RESET buttons](img/board-uart.jpg)
+
 ## Overview
 
 | Part | Detail |

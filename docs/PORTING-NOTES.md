@@ -107,7 +107,12 @@ on the device by `tools/super_files.py`.
 
 ## 6. Display, touch, USB
 
-- **Colours wrong:** this kernel ignores `rockchip,data-mapping` and reads the panel's `bus-format`. With
+- **Colours wrong:** this was the first Android 10 boot, still with the car launcher, and with the
+  banding and false colours you get when the LVDS runs in the wrong mode:
+
+  ![First Android 10 boot with wrong LVDS colours](img/wrong-colours.jpg)
+
+  This kernel ignores `rockchip,data-mapping` and reads the panel's `bus-format`. With
   none set it ran 18-bit. VESA-24 (also the driver default) was still wrong. **JEIDA-24 (`0x1012`)** is
   right.
 - **No touch driver** in the PX5 kernel (it has Goodix, not Ilitek), and an out-of-tree module would

@@ -9,7 +9,7 @@ Read [RECOVERY.md](RECOVERY.md) first, so you know how to get back before you st
 ## What you need
 
 **On the bench**
-- the terminal, opened up, on its 24 V supply, with the backup LiPo connected (the board won't run without it)
+- the terminal, opened up (photos of where everything is: [HARDWARE.md → Getting inside](HARDWARE.md#getting-inside)), on its 24 V supply, with the backup LiPo connected (the board won't run without it)
 - a micro-USB cable on **JP2**, the internal adb port on the compute board behind the screen
 - recommended: a 3.3 V USB-serial adapter on the debug UART (**TP17** = board TX, **TP18** = board RX,
   **TP19** = GND, 115200 8N1). Don't connect the adapter's VCC. It shows you every boot.
