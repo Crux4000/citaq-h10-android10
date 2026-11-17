@@ -47,7 +47,7 @@ shell_command:
     python3 /config/kiosk/kiosk_print.py {{ mode }} {{ data | default('') | string | base64_encode }}
     --size {{ size | default('normal') }} --align {{ align | default('left') }}
     --bold {{ bold | default('off') }} --cut {{ cut | default('on') }}
-    --qrsize {{ qrsize | default(8) | int }}
+    --qrsize {{ qrsize | default(8) | int }} --flip {{ flip | default('on') }}
   kiosk_list_images: python3 /config/kiosk/kiosk_print.py list
 
 script:
@@ -72,6 +72,9 @@ script:
         example: "on"
       qrsize:
         example: 8
+      flip:
+        description: "on (default) = reads the right way up from the front of the terminal"
+        example: "on"
     sequence:
       - action: shell_command.kiosk_build
         data:
@@ -82,6 +85,7 @@ script:
           bold: "{{ bold | default('off') }}"
           cut: "{{ cut | default('on') }}"
           qrsize: "{{ qrsize | default(8) | int }}"
+          flip: "{{ flip | default('on') }}"
         response_variable: build
         continue_on_error: true
       - if:

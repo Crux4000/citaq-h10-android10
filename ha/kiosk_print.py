@@ -11,6 +11,13 @@ Usage:
         source = http(s) URL, absolute path, or a file name in /media/kiosk
   kiosk_print.py qr    <base64 text>  [--qrsize 1-16] [--align ...] [--cut on|off]
   kiosk_print.py list                  (prints JSON list of images in /media/kiosk)
+
+--flip on (the default) prints upside down, so the receipt reads the right way up from the
+front of the Citaq H10-3 (paper comes out towards you, top edge first). Text uses the printer's
+upside-down mode (ESC { 1) with the lines sent in reverse order; images are rotated 180 degrees;
+QR codes scan at any angle, so they are left alone. For a receipt built from several jobs, send
+the jobs bottom part first (e.g. QR, then body, then title) - see docs/HOME-ASSISTANT.md.
+Use --flip off for printers that face the other way.
 """
 import argparse
 import base64
@@ -43,7 +50,7 @@ def align_cmd(a):
     return ESC + b"a" + bytes([ALIGN.get(a, 0)])
 
 
-def build_text(text, size, align, bold):
+def build_text(text, size, align, bold, flip=False):
     out = INIT + align_cmd(align)
     out += ESC + b"E" + (b"\x01" if bold == "on" else b"\x00")
     out += GS + b"!" + bytes([SIZE.get(size, 0)])
@@ -54,9 +61,12 @@ def build_text(text, size, align, bold):
     lines = []
     for line in text.split("\n"):
         lines.extend(textwrap.wrap(line, width) or [""])
+    if flip:
+        lines.reverse()                  # last line first: it ends up at the bottom when read
+        out += ESC + b"{\x01"           # upside-down mode: each line rotated 180 degrees
     body = "\n".join(lines).encode("cp437", "replace")
     out += body + b"\n"
-    out += GS + b"!\x00" + ESC + b"E\x00" + align_cmd("left")
+    out += GS + b"!\x00" + ESC + b"E\x00" + ESC + b"{\x00" + align_cmd("left")
     return out
 
 
@@ -73,10 +83,12 @@ def load_image(src):
     return img
 
 
-def build_image(src, align):
+def build_image(src, align, flip=False):
     from PIL import Image, ImageOps
     img = load_image(src)
     img = ImageOps.exif_transpose(img)
+    if flip:
+        img = img.rotate(180, expand=True)
     # flatten transparency onto white
     if img.mode in ("RGBA", "LA", "P"):
         img = img.convert("RGBA")
@@ -140,6 +152,7 @@ def main():
     p.add_argument("--bold", default="off")
     p.add_argument("--cut", default="on")
     p.add_argument("--qrsize", type=int, default=8)
+    p.add_argument("--flip", default="on")
     a = p.parse_args()
 
     if a.mode == "list":
@@ -148,9 +161,9 @@ def main():
 
     payload = b64(a.data) if a.data else ""
     if a.mode == "text":
-        job = build_text(payload, a.size, a.align, a.bold)
+        job = build_text(payload, a.size, a.align, a.bold, a.flip == "on")
     elif a.mode == "image":
-        job = build_image(payload.strip(), a.align)
+        job = build_image(payload.strip(), a.align, a.flip == "on")
     else:
         job = build_qr(payload, a.qrsize, a.align)
     if a.cut == "on":

@@ -9,7 +9,12 @@ receipt printer, LEDs, touch, Wi-Fi, sound and Google Play all work. It does thi
 the bootloader and without repartitioning**, and the stock Android 5.1 stays on the eMMC as a
 fallback.
 
-<!-- Add a photo of the terminal running Android 10 here, e.g. ![](docs/img/kiosk.jpg) -->
+![The Citaq H10-3 running Android 10 as a Home Assistant kiosk, printing its own receipt](docs/img/kiosk.jpg)
+
+| | |
+|:---:|:---:|
+| <img src="docs/img/about-android10.jpg" width="340" alt="Settings, About: Android 10"> | <img src="docs/img/receipt.jpg" width="260" alt="Receipt printed by the terminal"> |
+| Settings → About tablet | printed from Home Assistant |
 
 | | |
 |---|---|

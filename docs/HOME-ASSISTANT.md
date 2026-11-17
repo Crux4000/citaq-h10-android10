@@ -51,6 +51,16 @@ drops until you disconnect.
      align: centre
    ```
 
+**Upside-down printing (on by default).** The paper comes out of the H10-3 towards you, top edge
+first, so a normal print reads upside down from the front. `kiosk_print.py` therefore prints flipped
+by default:
+- text uses the printer's upside-down mode (`ESC { 1`) with the lines sent in reverse order
+- images are rotated 180°
+- QR codes scan at any angle, so they're left as they are
+
+A receipt made of **several jobs** has to be sent **bottom part first**: QR, then body, then title,
+with `cut: "on"` only on the last one. Pass `flip: "off"` to print the normal way.
+
 How it works: HA builds the ESC/POS bytes, uploads them with `androidtv.upload`, then runs
 `cat job.bin > /dev/ttyS1`. The boot hook sets the port to 115200 raw with CTS flow control and
 makes it writable. Feed, cut and cash-drawer-kick scripts are included too.
