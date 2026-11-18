@@ -27,7 +27,8 @@ does this on every boot. To keep the modem off, create the file `/data/citaq/no-
 The PX5 kernel already has both drivers:
 
 - `option` → **`/dev/ttyUSB0`–`3`**. **`ttyUSB2`** is the AT command port (1 and 3 answer too; 0 doesn't).
-- `qmi_wwan` → **`wwan0`** plus **`/dev/cdc-wdm0`**: the QMI data path, for mobile data without Android's
+- `qmi_wwan` → **`wwan0`** plus the QMI control device `cdc-wdm0` (see the note under "Not tested yet"): the data
+  path, for mobile data without Android's
   phone stack.
 
 USB ID `1508:1001` ("Fibocom Wireless Inc. / Fibocom Modem"). `AT+GTUSBMODE?` reports `17`.
