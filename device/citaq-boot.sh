@@ -144,6 +144,26 @@ echo 0 > /sys/class/gpio/gpio106/value
 echo 0 > /sys/class/gpio/gpio124/value
 chmod 666 /sys/class/gpio/gpio106/value /sys/class/gpio/gpio124/value /dev/ttyS1
 stty -F /dev/ttyS1 115200 raw -echo crtscts 2>/dev/null
+# 3b) 4G modem: Fibocom NL668-EAU on the internal USB hub (1-1.1). Nothing in the PX5 port powers it; the stock
+#     3.10 DT drove it through rk_bp_auto: power key gpio0 D4 (28), reset gpio3 B5 (109), W_DISABLE gpio3 B1 (105),
+#     all active-low. Driving all three high (key released, out of reset, radio enabled) brings it up on USB about
+#     14 s later: option -> /dev/ttyUSB0-3 (AT commands on ttyUSB2), qmi_wwan -> wwan0 + /dev/cdc-wdm0.
+#     Its ttys come up with iuclc set (AT replies arrive lowercased), so set them raw without case mapping, and
+#     world-writable like the printer port so Home Assistant can use them over adb. See docs/MODEM.md.
+#     Create /data/citaq/no-modem to leave the modem switched off.
+if [ ! -f /data/citaq/no-modem ]; then
+  for g in 28 109 105; do
+    [ -d /sys/class/gpio/gpio$g ] || echo $g > /sys/class/gpio/export
+    echo high > /sys/class/gpio/gpio$g/direction
+  done
+  ( for i in $(seq 1 60); do [ -c /dev/ttyUSB2 ] && break; sleep 1; done
+    for t in /dev/ttyUSB*; do
+      [ -c $t ] || continue
+      chmod 666 $t
+      stty -F $t 115200 raw -echo -iuclc -olcuc -icanon 2>/dev/null
+    done
+  ) &
+fi
 # 4) adb over the network on port 5555 (HA's Android Debug Bridge integration). Takes effect when adbd
 #    next starts; set once, it persists.
 [ "$(getprop persist.adb.tcp.port)" = 5555 ] || setprop persist.adb.tcp.port 5555

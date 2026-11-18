@@ -48,6 +48,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Wi-Fi (AP6256, 2.4 + 5 GHz) | ✅ | rebuilt `bcmdhd.ko` (see [docs/WIFI.md](docs/WIFI.md)) |
 | Bluetooth (AP6256 / BCM4345C5) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
+| 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**, see [docs/MODEM.md](docs/MODEM.md) |
 | Sound (RT5651 + speaker amp) | ✅ | Android volume works through `volshim` |
 | Brightness slider | ✅ | through `blshim` |
 | Receipt printer (`/dev/ttyS1`) | ✅ | ESC/POS, same paths as stock, so existing scripts keep working |
@@ -61,7 +62,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Battery % / charge status | ❌ | no RK818 driver; charging itself works |
 | Android's own "Power off" | ⚠️ | halts but stays powered; use the back switch |
 | Hardware volume keys / MTC volume slider | ⚠️ | go to the (absent) car MCU; use any app that uses Android's media volume |
-| Headphone-jack detect, 4G modem | ❓ | not done / untested |
+| Headphone-jack detect | ❓ | not done |
 
 ## Do I have the right terminal?
 
@@ -101,11 +102,11 @@ tools/        PC side (Python 3, no Android SDK needed)
   rkbootimg.py           shared Rockchip boot-image helpers
 dtb/          device-tree scripts (PX5 EVB DTB -> Citaq H10-3), need dtc/fdtput
 patches/      byte patches for super: CarService null fix, odex hide, touch service
-device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf
+device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf, modem/at-probe.sh
 src/          static arm64 helpers (C) + thermalstub (Java); build.sh builds them
 firstlight/   optional kernel bring-up test (busybox initramfs) for adapting to other boards
 ha/           Home Assistant package: printer, LEDs, app relaunch over adb
-docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Bluetooth, Home Assistant
+docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Bluetooth, 4G modem, Home Assistant
 ```
 
 ## What is *not* in this repo
