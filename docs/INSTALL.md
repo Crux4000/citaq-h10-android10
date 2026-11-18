@@ -16,24 +16,37 @@ Read [RECOVERY.md](RECOVERY.md) first, so you know how to get back before you st
 - a USB mouse is handy for the first Android 10 boot (no touch until the boot hook is installed)
 
 **On the PC**
-- `adb` (Android platform-tools)
-- Python 3.8+ (Windows, Linux or macOS) for everything in `tools/`
-- **Linux or WSL** for the build steps:
+- `adb`: [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools)
+- [Python 3.8+](https://www.python.org/downloads/) (Windows, Linux or macOS) for everything in `tools/`
+- **Linux or [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)** for the build steps
+  (on Debian/Ubuntu: `sudo apt install device-tree-compiler gcc-aarch64-linux-gnu`):
   - `device-tree-compiler` (`dtc`, `fdtput`) for the DTB
-  - `aarch64-linux-gnu-gcc` *or* `pip install ziglang` for `src/build.sh`
-  - a JDK and Android build-tools `d8` for `src/thermalstub/build.sh`
-- RKDevTool v2.9x (Windows) to unpack the PX5 firmware
+  - `aarch64-linux-gnu-gcc` *or* `pip install` [`ziglang`](https://pypi.org/project/ziglang/) for `src/build.sh`
+  - a JDK (e.g. [Eclipse Temurin](https://adoptium.net/)) and Android build-tools `d8` for
+    `src/thermalstub/build.sh`. `d8` comes with the build-tools package, installed with `sdkmanager` from the
+    [Android command-line tools](https://developer.android.com/tools/releases/cmdline-tools).
+- Windows only, to unpack the PX5 firmware: **RKDevTool v2.96** (`RKDevTool_Release_v2.96_zh.zip`) and the
+  Rockchip USB driver **DriverAssitant v5.14** (`DriverAssitant_v5.14.zip`). Both are on
+  [Radxa's RKDevTool page](https://docs.radxa.com/en/rock5/rock5a/low-level-dev/maskrom/windows), under
+  "Install RKDevTool". Other 2.9x versions should work too.
 - about 10 GB of free disk space
 
 **Downloads**
-- **PX5 Android 10 firmware:** `CHS7_PX5_10.0_IMG(20200603).zip` from the Hal9k firmware library
-  (RockChip PX5 → Android 10 → CHS). Other PX5 Android 10 images will have different files: the
-  patches in `patches/` check MD5s and will refuse them.
-- **Google apps** (for step 13), from a trusted mirror such as APKMirror:
-  - Google Play services `26.45.31` (arm64-v8a + armeabi-v7a, nodpi, min API 28) or newer
-  - Google Play Store `54.1.11` (universal, min API 29) or newer
-- **`bcmdhd-citaq.ko`** from this repo's release page (or build it: [WIFI.md](WIFI.md))
-- optional, for Bluetooth: **`BCM4345C5.hcd`** (link and MD5 in [BLUETOOTH.md](BLUETOOTH.md))
+
+Links go to each file's home page rather than to a copy. If a link dies, search for the exact filename and
+check it against the version or MD5 given here.
+
+| What | Version / file | Where |
+|---|---|---|
+| PX5 Android 10 firmware | `CHS7_PX5_10.0_IMG(20200603).zip` | Hal9k firmware library: RockChip PX5 → Android 10 → CHS |
+| Google Play services (step 13) | `26.45.31` or newer: arm64-v8a + armeabi-v7a, nodpi, min API 28 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-services/) |
+| Google Play Store (step 13) | `54.1.11` or newer: universal, min API 29 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-store/) |
+| Wi-Fi driver | `bcmdhd-citaq.ko` (or build it: [WIFI.md](WIFI.md)) | [this repo's releases](https://github.com/Crux4000/citaq-h10-android10/releases) |
+| Bluetooth firmware (optional) | `BCM4345C5.hcd`, MD5 `fc394331d03baa5847e2b5de94ffbc9b` | Armbian firmware, link in [BLUETOOTH.md](BLUETOOTH.md) |
+
+Only that exact PX5 image works. Other PX5 Android 10 images have different files, and the patches in
+`patches/` check MD5s and will refuse them. Step 3 confirms you have the right one:
+`super_to_citaq.py check` must report whole-region MD5 `db834dc68c97662488718f9cd9ca0495`.
 
 Throughout, `adb` means your adb and `ADB` in tool arguments is the path to it (e.g. `adb` or
 `C:\platform-tools\adb.exe`).
