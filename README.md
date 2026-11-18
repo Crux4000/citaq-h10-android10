@@ -5,7 +5,7 @@ Ex-Menulog / Just Eat units are turning up free or cheap, and they make a great 
 ship with **Android 5.1 from 2016**. Modern browsers and the Home Assistant app no longer run on it.
 
 This repo takes one of those terminals to **Android 10 with working PowerVR GPU acceleration**. The
-receipt printer, LEDs, touch, Wi-Fi, sound and Google Play all work. It does this **without replacing
+receipt printer, LEDs, touch, Wi-Fi, Bluetooth, sound and Google Play all work. It does this **without replacing
 the bootloader and without repartitioning**, and the stock Android 5.1 stays on the eMMC as a
 fallback.
 
@@ -46,6 +46,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Display 1024×768 LVDS | ✅ | JEIDA 24-bit; rotated 180° for the assembled case |
 | Touch (Ilitek ILI2105) | ✅ | userspace driver `ilits` (I2C → uinput), 2 fingers |
 | Wi-Fi (AP6256, 2.4 + 5 GHz) | ✅ | rebuilt `bcmdhd.ko` (see [docs/WIFI.md](docs/WIFI.md)) |
+| Bluetooth (AP6256 / BCM4345C5) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
 | Sound (RT5651 + speaker amp) | ✅ | Android volume works through `volshim` |
 | Brightness slider | ✅ | through `blshim` |
@@ -60,7 +61,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Battery % / charge status | ❌ | no RK818 driver; charging itself works |
 | Android's own "Power off" | ⚠️ | halts but stays powered; use the back switch |
 | Hardware volume keys / MTC volume slider | ⚠️ | go to the (absent) car MCU; use any app that uses Android's media volume |
-| Headphone-jack detect, Bluetooth, 4G modem | ❓ | not done / untested |
+| Headphone-jack detect, 4G modem | ❓ | not done / untested |
 
 ## Do I have the right terminal?
 
@@ -100,11 +101,11 @@ tools/        PC side (Python 3, no Android SDK needed)
   rkbootimg.py           shared Rockchip boot-image helpers
 dtb/          device-tree scripts (PX5 EVB DTB -> Citaq H10-3), need dtc/fdtput
 patches/      byte patches for super: CarService null fix, odex hide, touch service
-device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore
+device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf
 src/          static arm64 helpers (C) + thermalstub (Java); build.sh builds them
 firstlight/   optional kernel bring-up test (busybox initramfs) for adapting to other boards
 ha/           Home Assistant package: printer, LEDs, app relaunch over adb
-docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Home Assistant
+docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Bluetooth, Home Assistant
 ```
 
 ## What is *not* in this repo
@@ -114,6 +115,8 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Home
 - **Google apps** (Play services, Play Store). Sideload them from a trusted mirror.
 - **`bcmdhd.ko`**. It's GPL and built from Rockchip's public kernel tree, and it's attached to the
   GitHub release along with the exact source commit and config. See [docs/WIFI.md](docs/WIFI.md).
+- **`BCM4345C5.hcd`** (Bluetooth firmware). Download it from Armbian's firmware repo; the link and
+  MD5 are in [docs/BLUETOOTH.md](docs/BLUETOOTH.md).
 
 ## Warning
 

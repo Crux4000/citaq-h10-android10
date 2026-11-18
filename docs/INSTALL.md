@@ -33,6 +33,7 @@ Read [RECOVERY.md](RECOVERY.md) first, so you know how to get back before you st
   - Google Play services `26.45.31` (arm64-v8a + armeabi-v7a, nodpi, min API 28) or newer
   - Google Play Store `54.1.11` (universal, min API 29) or newer
 - **`bcmdhd-citaq.ko`** from this repo's release page (or build it: [WIFI.md](WIFI.md))
+- optional, for Bluetooth: **`BCM4345C5.hcd`** (link and MD5 in [BLUETOOTH.md](BLUETOOTH.md))
 
 Throughout, `adb` means your adb and `ADB` in tool arguments is the path to it (e.g. `adb` or
 `C:\platform-tools\adb.exe`).
@@ -170,13 +171,14 @@ To go back to stock at any point, `adb reboot` (normal boot = stock 5.1 until st
 
 Put these in one folder: `device/citaq-boot.sh`, `src/out/{ilits.bin,blshim,volshim,propset}`,
 `src/thermalstub/thermalstub.jar` and `bcmdhd.ko` (from the release). Optionally add a 1024×768
-`bootlogo.png`.
+`bootlogo.png`, and for Bluetooth `BCM4345C5.hcd` plus `device/bt/bt_vendor.conf`.
 
 ```sh
 python tools/install_data.py ADB that-folder/
 adb reboot recovery
 ```
 On this boot, touch, Wi-Fi, sound, brightness, the printer/LEDs and network adb (port 5555) all come up.
+Bluetooth is ready too; switch it on from quick settings. [BLUETOOTH.md](BLUETOOTH.md) has the checks.
 `/data/citaq/*.log` shows what the hook did.
 
 > The boot hook rotates the screen 180° (`user_rotation 2`) for the **assembled** case. On the bench

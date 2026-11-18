@@ -27,7 +27,7 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | Display | 10" 1024×768 4:3, **LVDS single-channel 8-bit, JEIDA**, 65 MHz |
 | Touch | Ilitek **ILI2105**, I2C2 (`i2c@ff140000`) addr **0x41**, IRQ gpio0 B4 (gpio12, low = data), reset gpio0 B3 (gpio11) |
 | PMIC | Rockchip **RK818** on I2C0 @ 0x1c, plus **Silergy SYR827** (vdd_cpu) @ 0x40 |
-| Wi-Fi/BT | **AP6256** (BCM4345 rev 9, 2.4 + 5 GHz) on SDIO0. The stock DT says AP6212, which is wrong |
+| Wi-Fi/BT | **AP6256** (BCM4345 rev 9, 2.4 + 5 GHz) on SDIO0. The stock DT says AP6212, which is wrong. Bluetooth core **BCM4345C5** on **UART0 → /dev/ttyS0** |
 | Audio | **Realtek RT5651** on I2C1 @ 0x1a, i2s-8ch, MCLK = SCLK_I2S_8CH_OUT; speaker amp gpio0 C3 (gpio19), **active high**. The stock DT also lists an ES8316 that isn't fitted |
 | Printer | 80 mm thermal, ESC/POS, **UART1 → /dev/ttyS1, 115200, CTS flow control**, 552 dots wide |
 | LEDs | red **gpio124**, blue **gpio106** (1 = on) |
@@ -51,6 +51,9 @@ GPIO numbers are Linux numbers: `bank × 32 + letter × 8 + pin` (A=0, B=1, C=2,
 | 81 | gpio2 C1 | stock init-gpio (high) - possibly printer power |
 | 114 | gpio3 C2 | LCD enable (high) |
 | 100 / 102 | gpio3 A4 / A6 | Wi-Fi WL_REG_ON (via mmc-pwrseq) / host wake |
+| 99 / 101 | gpio3 A3 / A5 | Bluetooth power / BT_REG_ON (via rfkill-bt) |
+| 98 / 103 | gpio3 A2 / A7 | Bluetooth BT_WAKE / host wake |
+| 91 | gpio2 D3 | UART0 RTS (Bluetooth), active low |
 | 15 | gpio0 B7 | headset detect, active low (not used yet) |
 
 ## Backlight
