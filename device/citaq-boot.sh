@@ -46,6 +46,25 @@ fi
 # 00b4) tee-supplicant talks to an OP-TEE the Citaq's trust firmware doesn't have: it exits, init restarts it every
 #      5 s forever, and each attempt logs an error - flooding the kernel log. Nothing on this build needs it.
 stop tee-supplicant
+# 00b5) Bluetooth (needs the DTB's wireless-bluetooth node). The AP6256's BT core (BCM4345C5) is on UART0 =
+#      /dev/ttyS0. Three things in the PX5 ROM get in the way:
+#      a) The GPS HAL (vendor.gnss_service) opens the port named by vendor.gps.channel (= /dev/ttyS0). The Citaq has
+#         no GPS, but the HAL must keep RUNNING: system_server waits for it forever at boot (stopping it hangs the
+#         boot on the logo). Point it at /dev/ptmx (a pty nobody writes to) and restart it, so ttyS0 is free.
+#         A watcher re-asserts this for the first 2 minutes in case a vendor .rc sets the property later.
+#      b) The MTC Bluetooth app (ExtAospBluetooth10) fakes "ON" without ever starting the controller unless
+#         hct.bt.org=true (HCT's "original Android" switch, read when com.android.bluetooth starts).
+#      c) No BCM4345C5 firmware in the ROM: /data/citaq/bt (BCM4345C5.hcd + bt_vendor.conf + the ROM's rtkbt.conf)
+#         is bind-mounted over /vendor/etc/bluetooth, where libbt-vendor loads its config. Delete /data/citaq/bt to undo.
+setprop hct.bt.org true
+gps_off() { setprop vendor.gps.channel /dev/ptmx; stop vendor.gnss_service; start vendor.gnss_service; }
+gps_off
+( for i in $(seq 1 24); do
+    sleep 5
+    [ "$(getprop vendor.gps.channel)" = /dev/ptmx ] || gps_off
+    [ "$(getprop hct.bt.org)" = true ] || setprop hct.bt.org true
+  done ) &
+[ -f /data/citaq/bt/bt_vendor.conf ] && mount -o bind /data/citaq/bt /vendor/etc/bluetooth
 # 00c) RK818 charger back to the stock Citaq limits (citaq310.dts battery node): 4.05 V / 1.0 A charge
 #      (CHRG_CTRL_REG1 0xa3 = EN|4050|1000 = 0x80; OTP default 0xb5 = 4.2 V / 2.0 A, too hard for a 1600 mAh pack),
 #      input current limit 3000 mA (USB_CTRL 0xa1 low nibble 0xb; OTP default 0 = 450 mA).
@@ -136,6 +155,9 @@ stty -F /dev/ttyS1 115200 raw -echo crtscts 2>/dev/null
   # re-assert it every boot. (Change the 2 to 0 for the panel's native way up.)
   settings put system accelerometer_rotation 0
   settings put system user_rotation 2
+  # No GPS on the Citaq (its HAL points at a dummy pty, see 00b5): keep the GPS location provider off, or
+  # every location request blocks the system foreground thread for 5 s waiting on the dummy port.
+  settings put secure location_providers_allowed -gps
   sleep 5
   for p in io.homeassistant.companion.android io.homeassistant.companion.android.minimal; do
     pm path $p > /dev/null 2>&1 || continue

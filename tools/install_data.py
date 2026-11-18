@@ -10,6 +10,11 @@ usage: install_data.py <adb> <dir>
   blshim volshim propset                               -> brightness / volume / serial helpers
   thermalstub.jar    src/thermalstub/build.sh          -> stand-in thermalservice for Google Play
   bootlogo.png       optional, 1024x768 boot logo
+  BCM4345C5.hcd      optional, Bluetooth firmware (docs/BLUETOOTH.md)   -> /data/citaq/bt/
+  bt_vendor.conf     optional, device/bt/bt_vendor.conf                -> /data/citaq/bt/
+                     (Bluetooth is installed only if both are there; the ROM's own rtkbt.conf
+                     is copied in next to them, because the boot hook bind-mounts the folder
+                     over /vendor/etc/bluetooth)
 
 Run it on the Android 10 port (not stock 5.1): /data is the port's own userdata, and it is
 wiped clean the first time Android 10 boots - so this step comes after that first boot,
@@ -22,6 +27,9 @@ import sys
 
 REQUIRED = ['citaq-boot.sh', 'ilits.bin', 'bcmdhd.ko', 'blshim', 'volshim', 'propset', 'thermalstub.jar']
 OPTIONAL = ['bootlogo.png']
+BT_FILES = ['BCM4345C5.hcd', 'bt_vendor.conf']
+BT_HCD_MD5 = 'fc394331d03baa5847e2b5de94ffbc9b'   # armbian/firmware bf5f7a8, 45,667 bytes
+BT_DIR = '/data/citaq/bt'
 TARGET = {'citaq-boot.sh': 'ilits'}          # init's akmd service runs /data/citaq/ilits
 EXEC = {'citaq-boot.sh', 'ilits.bin', 'blshim', 'volshim', 'propset'}
 
@@ -38,6 +46,43 @@ def sh(adbexe, cmd):
     return out.replace('__OK__', '').strip()
 
 
+def md5(path):
+    return hashlib.md5(open(path, 'rb').read()).hexdigest()
+
+
+def push(adbexe, local, dst, mode):
+    want = md5(local)
+    run(adbexe, 'push', local, dst)
+    got = sh(adbexe, f'md5sum {dst}').split()[0]
+    if got != want:
+        sys.exit(f'{os.path.basename(local)}: md5 mismatch after push ({got} != {want})')
+    sh(adbexe, f'chmod {mode} {dst}')
+    print(f'{os.path.basename(local):16s} -> {dst}  ok')
+
+
+def check_bt(src):
+    """True if the Bluetooth files are there (and right), False if absent; stops on a half set."""
+    have = [f for f in BT_FILES if os.path.exists(os.path.join(src, f))]
+    if not have:
+        return False
+    if len(have) != len(BT_FILES):
+        sys.exit(f'bluetooth needs both {" and ".join(BT_FILES)} in {src}')
+    if md5(os.path.join(src, 'BCM4345C5.hcd')) != BT_HCD_MD5:
+        sys.exit(f'BCM4345C5.hcd is not the expected file (md5 should be {BT_HCD_MD5})')
+    return True
+
+
+def install_bt(adbexe, src):
+    sh(adbexe, f'mkdir -p {BT_DIR}')
+    for f in BT_FILES:
+        push(adbexe, os.path.join(src, f), f'{BT_DIR}/{f}', '644')
+    # The bind mount hides the ROM's /vendor/etc/bluetooth, so keep its rtkbt.conf. On a re-run the
+    # mount is already active and the file is already in BT_DIR.
+    sh(adbexe, f'[ -f {BT_DIR}/rtkbt.conf ] || cp /vendor/etc/bluetooth/rtkbt.conf {BT_DIR}/')
+    sh(adbexe, f'chmod 755 {BT_DIR}; chmod 644 {BT_DIR}/*; chcon -R u:object_r:vendor_configs_file:s0 {BT_DIR}')
+    print(f'rtkbt.conf       -> {BT_DIR}/rtkbt.conf  ok')
+
+
 def main():
     a = sys.argv[1:]
     if len(a) != 2:
@@ -46,6 +91,7 @@ def main():
     missing = [f for f in REQUIRED if not os.path.exists(os.path.join(src, f))]
     if missing:
         sys.exit(f'missing in {src}: {", ".join(missing)}')
+    bt = check_bt(src)
     if 'device' not in run(adbexe, 'get-state'):
         sys.exit('no adb device')
     run(adbexe, 'root'); run(adbexe, 'wait-for-device')
@@ -56,15 +102,11 @@ def main():
         sys.exit(f'terminal is running Android {rel} - boot the Android 10 port first')
     sh(adbexe, 'mkdir -p /data/citaq')
     for f in REQUIRED + [o for o in OPTIONAL if os.path.exists(os.path.join(src, o))]:
-        local = os.path.join(src, f)
-        dst = '/data/citaq/' + TARGET.get(f, f)
-        want = hashlib.md5(open(local, 'rb').read()).hexdigest()
-        run(adbexe, 'push', local, dst)
-        got = sh(adbexe, f'md5sum {dst}').split()[0]
-        if got != want:
-            sys.exit(f'{f}: md5 mismatch after push ({got} != {want})')
-        sh(adbexe, f'chmod {"755" if f in EXEC else "644"} {dst}')
-        print(f'{f:16s} -> {dst}  ok')
+        push(adbexe, os.path.join(src, f), '/data/citaq/' + TARGET.get(f, f), '755' if f in EXEC else '644')
+    if bt:
+        install_bt(adbexe, src)
+    else:
+        print('bluetooth        skipped (no BCM4345C5.hcd / bt_vendor.conf)')
     print('done. Reboot into Android 10 to start the boot hook:\n'
           '  adb reboot recovery   (while Android 10 is only in the recovery slot)\n'
           '  adb reboot            (once it is the default boot)')

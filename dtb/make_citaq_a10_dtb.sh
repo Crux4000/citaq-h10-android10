@@ -179,6 +179,29 @@ P -tx /serial@ff190000 pinctrl-0 0x91 0x10e
 P -ts /pwm@ff680030 status okay
 P -tx /backlight pwms 0xd3 0 0x61a8 0
 
+# --- Bluetooth: the AP6256's BT core (BCM4345C5) is on UART0 (serial@ff180000 -> /dev/ttyS0). Pins from the
+#     stock Citaq 3.10 DT (wireless-bluetooth): BT power gpio3 A3, BT_REG_ON/reset gpio3 A5, BT_WAKE gpio3 A2,
+#     host-wake gpio3 A7, UART0 RTS = gpio2 D3 (active low). The Rockchip rfkill-bt driver (CONFIG_RFKILL_RK)
+#     gives Android its bluetooth rfkill switch; it parks RTS as a GPIO while powering the chip (pinctrl
+#     "rts_gpio") and hands it back to the UART ("default"). UART0 also gets its CTS pin, so libbt-vendor can
+#     run hardware flow control at 1.5 Mbaud. The rest (firmware, GPS HAL, the MTC app) is in docs/BLUETOOTH.md.
+fdtput -c "$OUT" /pinctrl/uart0/uart0-rts-gpio
+P -tx /pinctrl/uart0/uart0-rts-gpio rockchip,pins 0x02 0x1b 0x00 0x8b   # gpio2 D3 as GPIO, no pull
+P -tx /pinctrl/uart0/uart0-rts-gpio phandle 0x1f3
+P -tx /serial@ff180000 pinctrl-0 0x37 0x10c                              # uart0-xfer + uart0-cts
+B=/wireless-bluetooth
+fdtput -c "$OUT" $B
+P -ts $B compatible bluetooth-platdata
+P -tx $B uart_rts_gpios 0x93 0x1b 1                 # gpio2 D3, active low
+P -ts $B pinctrl-names default rts_gpio
+P -tx $B pinctrl-0 0x10d                            # uart0-rts (UART function)
+P -tx $B pinctrl-1 0x1f3                            # uart0-rts as GPIO
+P -tx $B BT,power_gpio 0x71 3 0                     # gpio3 A3, active high
+P -tx $B BT,reset_gpio 0x71 5 0                     # gpio3 A5 = BT_REG_ON, active high
+P -tx $B BT,wake_gpio 0x71 2 0                      # gpio3 A2, active high
+P -tx $B BT,wake_host_irq 0x71 7 0                  # gpio3 A7
+P -ts $B status okay
+
 # The 4.19 MMC core numbers hosts in probe order (no DT aliases), and probe order = DT node
 # order. With SDIO0 enabled before the eMMC node, the Wi-Fi host became mmc0 and the eMMC mmcblk1,
 # so blkdevparts=mmcblk0:... matched nothing and init rebooted to the bootloader. Move the pwrseq

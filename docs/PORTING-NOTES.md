@@ -133,7 +133,20 @@ See [WIFI.md](WIFI.md). In short:
   rebuilt with the kernel's exact CRCs
 - enabling SDIO renumbered the eMMC, until the DT nodes were reordered
 
-## 8. Sound
+## 8. Bluetooth
+
+See [BLUETOOTH.md](BLUETOOTH.md). The chip answered straight away once its pins were set by hand. Getting
+Android to use it took four fixes:
+- a `wireless-bluetooth` DTB node, so the rfkill switch exists
+- the BCM4345C5 firmware, which the ROM doesn't have
+- the PX5 **GPS service holds UART0**. Stopping it hangs the boot, because `system_server` waits for the
+  GNSS HAL forever. Pointing it at `/dev/ptmx` (a pseudo-terminal nobody writes to) frees the port and
+  keeps everyone happy.
+- the **MTC Bluetooth app fakes being on**. It reports ON without ever starting the controller, unless the
+  property `hct.bt.org` is `true`. That one property brings back stock Android 10 behaviour, with no APK
+  patch (which would have meant re-signing a platform-signed app).
+
+## 9. Sound
 
 - The stock DT lists an **ES8316** codec. It isn't fitted (the stock boot log shows its probe failing),
   and the real codec is a **Realtek RT5651**.
@@ -149,13 +162,13 @@ See [WIFI.md](WIFI.md). In short:
 - `ro.config.media_vol_steps` must be set before `AudioService` starts. Otherwise it asks the MCU for the
   maximum, gets `"0"` from our patch, and ends up with a 0-step volume range.
 
-## 9. Backlight
+## 10. Backlight
 
 The MTC `pwm-backlight` driver ignores `brightness` and holds the PWM at 100 %. The DTB points that
 driver at an **unused** PWM (PWM3), so Android's lights HAL still has a sysfs file to write.
 `blshim` then mirrors that value onto the real backlight PWM0 through the PWM sysfs interface.
 
-## 10. Google Play
+## 11. Google Play
 
 - The shipped 2019 Play services fail check-in. Current ones crash with a NullPointerException in
   `PowerManager.addThermalStatusListener`, because the MTC `SystemServer` never starts
@@ -168,7 +181,7 @@ driver at an **unused** PWM (PWM3), so Android's lights HAL still has a sysfs fi
   serial counter, futex wake.
 - After that: sign-in, Play certification, WebView 157 and the current HA app.
 
-## 11. Living without a PMIC driver
+## 12. Living without a PMIC driver
 
 The PX5 kernel has no RK818 driver, which turned out mostly fine. U-Boot programs the rails and the
 charger, and the charger runs on its own. Writing a driver would hand the kernel control of every
@@ -183,7 +196,7 @@ rail (CPU, DDR, LCD) just to get a battery percentage. Two problems did come up:
   after DC goes away it does a clean shutdown: broadcast, stop the framework, sync, emergency remount,
   then **RK818 DEV_OFF**, the same thing mainline's `rk808` `pm_power_off` does.
 
-## 12. Speed and heat
+## 13. Speed and heat
 
 - CPU DVFS came back with the real **SYR827** regulator driver (`fan53555`).
 - The tsadc needed two fixes:
@@ -196,7 +209,7 @@ rail (CPU, DDR, LCD) just to get a battery percentage. Two problems did come up:
 - Boot time: 28.4 s → **22.5 s**. CPU-bound benchmark: −36 %.
 - `cmd package compile -m speed -a` and removing 51 car/bloat apps did the rest.
 
-## 13. Making it the default
+## 14. Making it the default
 
 The stock boot slot holds a legacy Rockchip `KRNL`-wrapped ramdisk; the stock kernel is in its own
 partition. The Android 10 image (kernel + ramdisk + DTB in one Android boot image) goes into the boot

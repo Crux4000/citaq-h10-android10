@@ -39,6 +39,11 @@ them.
   screen, next to the debug pads) while powering on. That boots the recovery slot, which holds a
   spare copy of a known-good image. From there, rewrite the boot slot with `flash_slot.py`.
 - **Kernel panic:** it reboots by itself after 5 s.
+- **Stuck on the boot logo after changing the boot hook:** adbd is already running under the boot
+  animation, so plug into JP2 and fix it from there, for example by restoring your previous
+  `/data/citaq/ilits`. Power-cycling won't help, because the hook runs again on every boot. One known
+  way to cause this is stopping the PX5 GPS service (see [BLUETOOTH.md](BLUETOOTH.md#3-the-gps-service-holds-the-port)):
+  `adb shell getprop init.svc.vendor.gnss_service` should say `running`.
 - **Frozen but adb still answers** (for example a wedged USB hub on stock 5.1):
   `adb shell "echo 1 > /proc/sys/kernel/sysrq; echo b > /proc/sysrq-trigger"` forces a clean reset
   without opening anything.
