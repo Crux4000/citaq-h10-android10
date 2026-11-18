@@ -112,7 +112,7 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
 ## What is *not* in this repo
 
 - **The PX5 firmware** (Rockchip/HCT `CHS7_PX5_10.0_IMG(20200603)`). You download it yourself from
-  the [Hal9k firmware library](https://hal9k.ru/library/), and the tools extract and patch it on your PC.
+  the [Hal9k Firmware Library](https://hal9k.ru/?page_id=7), and the tools extract and patch it on your PC.
 - **Google apps** (Play services, Play Store). Sideload them from a trusted mirror.
 - **`bcmdhd.ko`**. It's GPL and built from Rockchip's public kernel tree, and it's attached to the
   GitHub release along with the exact source commit and config. See [docs/WIFI.md](docs/WIFI.md).
