@@ -164,6 +164,27 @@ if [ ! -f /data/citaq/no-modem ]; then
     done
   ) &
 fi
+# 3c) Headphone jack. The jack and the built-in speaker amp share the codec's headphone output, so the speakers can
+#     only be muted with the amp's enable pin (gpio19, active high), which the DTB takes away from the codec driver.
+#     Jack detect = gpio15 (active low; the DTB turns its pull-up on): 0 = something plugged in.
+#     /data/citaq/speaker overrides it: "on" or "off" (no file = automatic). Without the matching DTB gpio19 is
+#     still held by the codec driver, the export fails and this does nothing.
+( cd /sys/class/gpio
+  for g in 15 19; do [ -d gpio$g ] || echo $g > export; done
+  [ -d gpio15 ] && [ -d gpio19 ] || exit 0
+  echo in > gpio15/direction
+  echo high > gpio19/direction
+  while :; do
+    m=$(cat /data/citaq/speaker 2>/dev/null)
+    case "$m" in
+      on)  a=1 ;;
+      off) a=0 ;;
+      *)   [ "$(cat gpio15/value)" = 0 ] && a=0 || a=1 ;;
+    esac
+    [ "$(cat gpio19/value)" = $a ] || echo $a > gpio19/value
+    sleep 1
+  done
+) > /dev/null 2>&1 &
 # 4) adb over the network on port 5555 (HA's Android Debug Bridge integration). Takes effect when adbd
 #    next starts; set once, it persists.
 [ "$(getprop persist.adb.tcp.port)" = 5555 ] || setprop persist.adb.tcp.port 5555

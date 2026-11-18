@@ -50,6 +50,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Ethernet (RTL8152) | ✅ | |
 | 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**, see [docs/MODEM.md](docs/MODEM.md) |
 | Sound (RT5651 + speaker amp) | ✅ | Android volume works through `volshim` |
+| Headphone jack | ✅ | built-in speakers mute while something is plugged in |
 | Brightness slider | ✅ | through `blshim` |
 | Receipt printer (`/dev/ttyS1`) | ✅ | ESC/POS, same paths as stock, so existing scripts keep working |
 | Red / blue LEDs | ✅ | gpio124 / gpio106 |
@@ -62,7 +63,6 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Battery % / charge status | ❌ | no RK818 driver; charging itself works |
 | Android's own "Power off" | ⚠️ | halts but stays powered; use the back switch |
 | Hardware volume keys / MTC volume slider | ⚠️ | go to the (absent) car MCU; use any app that uses Android's media volume |
-| Headphone-jack detect | ❓ | not done |
 
 ## Do I have the right terminal?
 

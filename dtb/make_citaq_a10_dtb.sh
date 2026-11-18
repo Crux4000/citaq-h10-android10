@@ -202,6 +202,20 @@ P -tx $B BT,wake_gpio 0x71 2 0                      # gpio3 A2, active high
 P -tx $B BT,wake_host_irq 0x71 7 0                  # gpio3 A7
 P -ts $B status okay
 
+# --- Headphone jack: on the Citaq the jack and the built-in speaker amp share the codec's headphone output, so
+#     the only way to mute the speakers with headphones in is the amp's enable pin (gpio0 C3 = gpio19). Stock
+#     Android 5 had a headset driver doing that from the jack-detect pin (gpio0 B7 = gpio15, active low, with the
+#     pull-up on). The PX5 build has neither. So: take the amp pin away from the codec driver (it treats
+#     spk-con-gpios as optional: "cannot get spk-con-gpio" and carries on) and let the boot hook drive it, and turn
+#     on gpio15's pull-up with a pin-controller hog (without it the pin reads 0 whether or not a plug is in).
+fdtput -d "$OUT" /i2c@ff660000/rt5651@1a spk-con-gpios
+fdtput -c "$OUT" /pinctrl/citaq-hog
+fdtput -c "$OUT" /pinctrl/citaq-hog/jack-det
+P -tx /pinctrl/citaq-hog/jack-det rockchip,pins 0x00 0x0f 0x00 0x8c   # gpio0 B7 as GPIO, pull-up
+P -tx /pinctrl/citaq-hog/jack-det phandle 0x1f4
+P -ts /pinctrl pinctrl-names default
+P -tx /pinctrl pinctrl-0 0x1f4
+
 # The 4.19 MMC core numbers hosts in probe order (no DT aliases), and probe order = DT node
 # order. With SDIO0 enabled before the eMMC node, the Wi-Fi host became mmc0 and the eMMC mmcblk1,
 # so blkdevparts=mmcblk0:... matched nothing and init rebooted to the bootloader. Move the pwrseq

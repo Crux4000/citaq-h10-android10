@@ -161,6 +161,12 @@ Android to use it took four fixes:
   keys still go to the absent MCU.
 - `ro.config.media_vol_steps` must be set before `AudioService` starts. Otherwise it asks the MCU for the
   maximum, gets `"0"` from our patch, and ends up with a 0-step volume range.
+- **Headphones played through the speakers too.** The jack and the speaker amp both hang off the codec's
+  headphone output (muting line out changed nothing), so the only split is the amp's enable pin. Stock Android 5
+  had a headset driver for that; car head units have no jack, so the PX5 build doesn't. The DTB takes the amp
+  pin away from the rt5651 driver (it treats it as optional) and turns on the jack-detect pull-up with a
+  pin-controller hog. Without the pull-up the pin reads 0 whether a plug is in or not. A boot-hook loop then
+  mutes the amp while the jack is in. Trade-off: the amp no longer switches off when audio is muted.
 
 ## 10. Backlight
 
