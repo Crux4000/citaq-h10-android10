@@ -32,6 +32,10 @@ The PX5 kernel already has both drivers:
 
 USB ID `1508:1001` ("Fibocom Wireless Inc. / Fibocom Modem"). `AT+GTUSBMODE?` reports `17`.
 
+Checked after a reboot with the boot hook: the four `ttyUSB` ports appear (owner `radio`, mode 666), `wwan0`
+exists (down, as expected without a SIM), and **nothing else holds the ports**: the ROM's `rild` isn't running,
+so it doesn't fight scripts over the AT port. Bluetooth (which shares nothing with the modem) is unaffected.
+
 One gotcha: these serial ports come up with `iuclc` set, so replies arrive in lowercase (`ok`) and scripts
 looking for `OK` miss them. The boot hook sets the ports raw without case mapping, and world-writable like the
 printer port so Home Assistant can use them over adb.
@@ -70,8 +74,12 @@ With a SIM in, these are the things to try. Please report back either way.
    ```
    Useful as a backup alert path for Home Assistant when Wi-Fi or the internet is down.
 3. **Data** over QMI on `wwan0`, for example with `qmicli`/`uqmi`-style tools (not on the device yet) or the
-   modem's own dial-up commands. Untested.
+   modem's own dial-up commands. Untested. Note that the kernel registers `cdc-wdm0`, but Android's ueventd
+   doesn't create `/dev/cdc-wdm0`, so QMI tools would first need the node made by hand (`mknod`, major/minor
+   from `/sys/class/usbmisc/cdc-wdm0/dev`).
 
-**Android's own mobile data and SMS apps won't use the modem.** That needs a RIL (radio interface layer) for the
-NL668 on Android 10. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit, and the PX5 ROM's RIL is for a
-different modem. Talking to the modem directly over AT/QMI is the practical route.
+**Android's own mobile data and SMS apps don't use the modem (yet).** That needs a RIL (radio interface layer)
+that knows the NL668. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit. The PX5 ROM reports
+`gsm.version.ril-impl = RIL_RK_DATA_V10.0`, Rockchip's generic RIL for USB 3G/4G dongles, but its daemon isn't
+running, and whether it supports the NL668 is unknown. That's a possible route to Android-level mobile data for
+anyone with a SIM to test. Talking to the modem directly over AT/QMI is the practical route for now.
