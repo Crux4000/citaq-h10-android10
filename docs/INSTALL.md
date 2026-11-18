@@ -38,12 +38,13 @@ check it against the version or MD5 given here.
 
 | What | Version / file | Where |
 |---|---|---|
-| PX5 Android 10 firmware | `CHS7_PX5_10.0_IMG(20200603).zip` | [Hal9k Firmware Library](https://hal9k.ru/?page_id=7): [RockChip PX5 Android 10 → CHS](https://hal9k.ru/?page_id=7&dir=library%2FRockChip%20PX5%20Android%2010%2FCHS) (the `IMG` one, 1.06 GB, not the `ota` files) |
+| PX5 Android 10 firmware | `CHS7_PX5_10.0_IMG(20200603).zip`, 1,137,878,295 bytes<br>MD5 `3b67bce7a84430912c3779b649f8cdf2`<br>SHA-256 `3a0dbe4690051c07a02eb3f9c7225abd6ce782b3dc78b8c798c7d5ceb9a97ab5` | [Hal9k Firmware Library](https://hal9k.ru/?page_id=7): [RockChip PX5 Android 10 → CHS](https://hal9k.ru/?page_id=7&dir=library%2FRockChip%20PX5%20Android%2010%2FCHS) (the `IMG` one, 1.06 GB, not the `ota` files) |
 | Google Play services (step 13) | `26.45.31` or newer: arm64-v8a + armeabi-v7a, nodpi, min API 28 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-services/) |
 | Google Play Store (step 13) | `54.1.11` or newer: universal, min API 29 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-store/) |
 | Wi-Fi driver | `bcmdhd-citaq.ko` (or build it: [WIFI.md](WIFI.md)) | [this repo's releases](https://github.com/Crux4000/citaq-h10-android10/releases) |
 | Bluetooth firmware (optional) | `BCM4345C5.hcd`, MD5 `fc394331d03baa5847e2b5de94ffbc9b` | Armbian firmware, link in [BLUETOOTH.md](BLUETOOTH.md) |
 
+Check the zip before unpacking it: `certutil -hashfile <zip> MD5` on Windows, `md5sum <zip>` on Linux.
 Only that exact PX5 image works. Other PX5 Android 10 images have different files, and the patches in
 `patches/` check MD5s and will refuse them. Step 3 confirms you have the right one:
 `super_to_citaq.py check` must report whole-region MD5 `db834dc68c97662488718f9cd9ca0495`.
