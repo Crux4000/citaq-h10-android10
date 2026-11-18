@@ -133,5 +133,13 @@ own risk**, and you should keep the full eMMC backup somewhere safe.
 
 ## Licence
 
-The code and docs in this repo are MIT licensed (see [LICENSE](LICENSE)). The PX5 firmware, Google
-apps and the Linux kernel / `bcmdhd` remain under their own licences.
+Copyright (C) 2026 Crux4000
+
+The code and docs in this repo are licensed under the **GNU General Public License v3.0 or later**
+(see [LICENSE](LICENSE)). You're free to use, modify and share them, including commercially, but if you
+distribute this work or anything built from it (for example, terminals sold with it installed), you
+must make the complete source available under the same licence.
+
+Copies obtained before 18 November 2026 were released under the MIT licence.
+
+The PX5 firmware, Google apps and the Linux kernel / `bcmdhd` remain under their own licences.
