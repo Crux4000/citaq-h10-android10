@@ -38,7 +38,7 @@ check it against the version or MD5 given here.
 
 | What | Version / file | Where |
 |---|---|---|
-| PX5 Android 10 firmware | `CHS7_PX5_10.0_IMG(20200603).zip` | Hal9k firmware library: RockChip PX5 → Android 10 → CHS |
+| PX5 Android 10 firmware | `CHS7_PX5_10.0_IMG(20200603).zip` | [Hal9k firmware library](https://hal9k.ru/library/): [RockChip PX5 Android 10 → CHS](https://hal9k.ru/library/RockChip%20PX5%20Android%2010/CHS/) |
 | Google Play services (step 13) | `26.45.31` or newer: arm64-v8a + armeabi-v7a, nodpi, min API 28 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-services/) |
 | Google Play Store (step 13) | `54.1.11` or newer: universal, min API 29 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-store/) |
 | Wi-Fi driver | `bcmdhd-citaq.ko` (or build it: [WIFI.md](WIFI.md)) | [this repo's releases](https://github.com/Crux4000/citaq-h10-android10/releases) |
