@@ -9,6 +9,13 @@ receipt printer, LEDs, touch, Wi-Fi, Bluetooth, sound and Google Play all work. 
 the bootloader and without repartitioning**, and the stock Android 5.1 stays on the eMMC as a
 fallback.
 
+> **Tried it? Please report back, good or bad.** So far this has been done on exactly one terminal.
+> Whether it worked, half-worked or ended in maskrom, a quick
+> **[device report](https://github.com/Crux4000/citaq-h10-android10/issues/new?template=device-report.yml)**
+> adds your unit to the **[device list](docs/DEVICES.md)** and helps the next person. Reports from other
+> H10-3 stock builds and from other RK3368 hardware are the most useful. Just running the `getprop`
+> checks and reporting what you have counts too.
+
 ![The Citaq H10-3 running Android 10 as a Home Assistant kiosk, printing its own receipt](docs/img/kiosk.jpg)
 
 | | |
@@ -72,6 +79,7 @@ You need **all** of these. The scripts check most of them and stop if something 
 - the stock **userdebug** build, so `adb root` works. Ex-Menulog units with build
   `20220926.JE.H10.5.1.0005` (`ro.product.device=justeat_32`) are. Check with
   `adb shell getprop ro.build.type`. A `user` build can't be rooted this way.
+  [docs/DEVICES.md](docs/DEVICES.md) lists every build and board reported so far.
 - **the case open** on the bench, because you need the internal **JP2 micro-USB** for adb on Android
   10's first boot. A 3.3 V USB-serial adapter on the debug UART is strongly recommended.
 
