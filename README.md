@@ -64,7 +64,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | 3 USB host ports | ✅ | barcode scanners, mice, flash drives, SDR dongles |
 | adb over USB (JP2) and network | ✅ | userdebug build, `adb root` works |
 | Google Play / sign-in | ✅ | with a `thermalservice` stub and a serial-number fix |
-| CPU DVFS + thermal | ✅ | 408 MHz–1.2 GHz; 1.5 GHz is unstable without a heatsink |
+| CPU DVFS + thermal | ✅ | 408 MHz–1.2 GHz, limit adjustable; runs warm with no heatsink, see [Known issues](#known-issues) |
 | Back power switch | ✅ | clean shutdown and real power-off |
 | Survives a battery pull | ✅ | the boot hook re-programs the PMIC |
 | Battery % / charge status | ❌ | no RK818 driver; charging itself works |
@@ -126,6 +126,19 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
   GitHub release along with the exact source commit and config. See [docs/WIFI.md](docs/WIFI.md).
 - **`BCM4345C5.hcd`** (Bluetooth firmware). Download it from Armbian's firmware repo; the link and
   MD5 are in [docs/BLUETOOTH.md](docs/BLUETOOTH.md).
+
+## Known issues
+
+- **It runs warm, and one freeze is under investigation.** These terminals have no heatsink on the
+  SoC, and there are only a couple of millimetres between the chip and the case. At the default
+  1.2 GHz the temperature sensor reads about 65–70 °C with the terminal just showing a dashboard. The
+  sensor is coarse and was only checked against a real thermometer at around 40 °C, so treat that as
+  a rough figure. On 19 Nov 2026 one terminal froze after about 3 hours at 1.2 GHz: screen off,
+  touch and adb dead, nothing in the logs, back after a power-cycle. It was the first freeze in two
+  days and the cause isn't confirmed yet. Heat at 1.2 GHz is the main suspect.
+  **If yours freezes**, set the CPU limit to 1008 MHz
+  ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)) and please open an issue saying whether it
+  helped. This note will be updated once there's an answer.
 
 ## Warning
 

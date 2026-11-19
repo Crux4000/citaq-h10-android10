@@ -44,6 +44,9 @@ them.
   `/data/citaq/ilits`. Power-cycling won't help, because the hook runs again on every boot. One known
   way to cause this is stopping the PX5 GPS service (see [BLUETOOTH.md](BLUETOOTH.md#3-the-gps-service-holds-the-port)):
   `adb shell getprop init.svc.vendor.gnss_service` should say `running`.
+- **Frozen with the screen off, touch and adb dead, and it comes back after a power-cycle:** possibly
+  heat at 1.2 GHz (see [Known issues](../README.md#known-issues)). Set the CPU limit to 1008 MHz
+  ([HARDWARE.md](HARDWARE.md#cpu-speed-limit)).
 - **Frozen but adb still answers** (for example a wedged USB hub on stock 5.1):
   `adb shell "echo 1 > /proc/sys/kernel/sysrq; echo b > /proc/sysrq-trigger"` forces a clean reset
   without opening anything.

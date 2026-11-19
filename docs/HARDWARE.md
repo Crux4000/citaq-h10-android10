@@ -92,6 +92,39 @@ I2C0 @ 0x40, ID 0x88. VSEL0 = 0xa4 (enabled, 1162.5 mV) at boot, VSEL1 = sleep. 
 the `fan53555` driver (`fcs,suspend-voltage-selector = 1`). CPU OPPs are capped at 1.2 GHz: 1512 MHz at
 1.35 V hung the board after 30–70 s of full load without a heatsink.
 
+## CPU speed limit
+
+Both clusters top out at 1.2 GHz: the DTB drops the big cluster's 1296/1416/1512 MHz OPPs, because
+1512 MHz at 1.35 V hung the board after 30–70 s of full load. Both clusters share the SYR827 rail, so
+it runs at whatever the busier cluster needs, and the little cluster needs the most:
+
+| Limit | Little cluster (cpu0–3) | Big cluster (cpu4–7) | Notes |
+|---|---|---|---|
+| 1200 MHz (default) | 1.225 V | 1.15 V | fastest; about 40% more CPU heat than 1008 |
+| 1008 MHz | 1.125 V | 1.05 V | try this first if the terminal freezes |
+| 816 MHz | 1.025 V | 1.00 V | coolest; fine for a dashboard |
+
+There is no heatsink, so at 1.2 GHz the sensor reads about 65–70 °C under light load (see
+[Known issues](../README.md#known-issues)). The boot hook reads the limit from
+`/data/citaq/cpu-max-mhz` (`816`, `1008` or `1200`; anything else means 1200) and logs what it set to
+`/data/citaq/cpu.log`.
+
+Set it for every boot:
+
+```sh
+adb root
+adb shell "echo 1008 > /data/citaq/cpu-max-mhz"
+```
+
+Apply it now as well, without rebooting:
+
+```sh
+adb shell 'for p in /sys/devices/system/cpu/cpufreq/policy*; do echo 1008000 > $p/scaling_max_freq; done'
+```
+
+Delete the file to go back to 1200 MHz. Check with
+`adb shell cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq`.
+
 ## Thermal
 
 `tsadc@ff280000`, legacy rk3368 driver. Two quirks:
@@ -101,7 +134,10 @@ the `fan53555` driver (`fcs,suspend-voltage-selector = 1`). CPU OPPs are capped 
 2. It multiplies by `tsadc-supply`, which gives nonsense when that supply is the scaling vdd_cpu. The
    port gives it a fixed 1.1625 V reference instead.
 
-Calibration point: 42 °C reported at 37 °C on the package top.
+Calibration point: 42 °C reported at 37 °C on the package top. That is the only point checked, so
+readings up near the 70 °C trip may be several degrees out either way. The raw ADC code moves about
+3 °C per step (122 = 25 °C, 128 = 42 °C, 139 = 75 °C raw) and the driver smooths it, so the reported
+temperature moves in flat steps rather than smoothly.
 
 ## eMMC layout
 
