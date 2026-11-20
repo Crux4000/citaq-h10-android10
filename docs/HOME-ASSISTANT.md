@@ -63,7 +63,8 @@ with `cut: "on"` only on the last one. Pass `flip: "off"` to print the normal wa
 
 How it works: HA builds the ESC/POS bytes, uploads them with `androidtv.upload`, then runs
 `cat job.bin > /dev/ttyS1`. The boot hook sets the port to 115200 raw with CTS flow control and
-makes it writable. Feed, cut and cash-drawer-kick scripts are included too.
+makes it writable. Feed, cut, cash-drawer-kick and printer-buzzer-off (`kiosk_buzzer_off`) scripts are
+included too.
 
 ## Barcode scanners
 

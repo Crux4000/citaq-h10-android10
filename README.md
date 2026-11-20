@@ -129,6 +129,18 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
 
 ## Known issues
 
+- **The printer beeps non-stop.** It's the receipt printer's own alarm, usually no paper or the lid
+  open, and it can go off on the bench too. Turn its buzzer off with:
+  ```sh
+  adb shell "printf '\037\033\037\120\102' > /dev/ttyS1"
+  ```
+  The same command works from Windows (cmd or PowerShell) and Linux, and doesn't need root (on stock
+  5.1, if it says `printf: not found`, use `busybox printf` instead). It sends
+  the Citaq printer command `1F 1B 1F 50 42`. It's not known yet whether the printer remembers this
+  after a power cycle, so if the beeping comes back, send it again (or use the `kiosk_buzzer_off`
+  script in the [Home Assistant package](docs/HOME-ASSISTANT.md#receipt-printer)). If your printer has
+  been taken out and something still beeps, this command can't reach it.
+
 - **It runs hot, and one freeze is under investigation.** These terminals have no heatsink on the
   SoC, and there are only a couple of millimetres between the chip and the case.
   - **Don't trust the built-in temperature reading yet.** The port's sensor driver corrects the

@@ -200,6 +200,16 @@ script:
         data:
           command: "busybox printf '\\033d\\003\\035VB\\000' > /dev/ttyS1"
 
+  # Printer alarm buzzer off (no paper / lid open). Citaq command 1F 1B 1F 50 42.
+  kiosk_buzzer_off:
+    alias: Kiosk printer buzzer off
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: "printf '\\037\\033\\037\\120\\102' > /dev/ttyS1"
+
   kiosk_drawer_kick:
     alias: Kiosk cash drawer kick
     sequence:
