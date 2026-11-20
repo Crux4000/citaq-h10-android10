@@ -13,8 +13,10 @@ SERIAL=$3
 COUNTRY=${COUNTRY:-AU}
 echo "$SERIAL" | grep -Eq '^[A-Za-z0-9]{6,20}$' || { echo "SERIAL must be 6-20 letters/digits" >&2; exit 1; }
 echo "$COUNTRY" | grep -Eq '^[A-Z]{2}$' || { echo "COUNTRY must be a 2-letter code like AU, US, GB" >&2; exit 1; }
-sh "$D/make_citaq_dtb.sh" "$1" "$2"
 OUT=$2
+# If any step fails, don't leave a half-built DTB behind that looks finished.
+trap 'rm -f "$OUT" "$OUT.dts"; echo "FAILED - no $OUT written" >&2' EXIT
+sh "$D/make_citaq_dtb.sh" "$1" "$2"
 P() { fdtput "$OUT" "$@"; }
 P -ts / model "Citaq H10-3 (PX5 Android 10)"
 
@@ -224,14 +226,24 @@ dtc -q -I dtb -O dts "$OUT" -o "$OUT.dts"
 python3 - "$OUT.dts" <<'PY'
 import sys,re
 p=sys.argv[1]; t=open(p).read()
+# Newer dtc (1.7.1+) restores labels from __symbols__ when decompiling, e.g. "sdio0: dwmmc@ff0d0000 {",
+# so allow any "label:" prefixes in front of the node name.
+def node(t,name):
+    return re.search(r'\n\t(?:[A-Za-z_][\w]*: )*'+re.escape(name)+r' \{\n',t)
 def cut(t,name):
-    m=re.search(r'\n\t'+re.escape(name)+r' \{\n',t); e=t.index('\n\t};\n',m.end())+4
+    m=node(t,name)
+    if not m: sys.exit(f'node {name} not found in the decompiled DTB - stopping')
+    e=t.index('\n\t};\n',m.end()-1)+5   # whole lines incl. trailing newline; -1 so an empty node works
     return t[:m.start()+1]+t[e:], t[m.start()+1:e]
 t,pw=cut(t,'sdio-pwrseq'); t,sd=cut(t,'dwmmc@ff0d0000')
 end=t.rindex('\n};')            # close of the root node
 t=t[:end+1]+pw+sd+t[end+1:]
+emmc,sdio=node(t,'dwmmc@ff0f0000'),node(t,'dwmmc@ff0d0000')
+if not (emmc and sdio and emmc.start()<sdio.start()):
+    sys.exit('eMMC node is not ahead of the SDIO node - it would not be mmcblk0. stopping')
 open(p,'w').write(t)
 PY
 dtc -q -I dts -O dtb "$OUT.dts" -o "$OUT"
 rm -f "$OUT.dts"
+trap - EXIT
 echo "android dtb: $OUT  (serial $SERIAL, Wi-Fi country $COUNTRY)"

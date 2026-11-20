@@ -15,7 +15,7 @@ What it does, in order (stops at the first problem, before anything is written):
   4. pushes the image, MD5-checks it on the terminal, asks you to confirm
   5. dd to the eMMC, reads it back and compares MD5s
 
-Slot positions on the 16 GB Citaq H10-3 (16 KiB blocks of /dev/block/mmcblk0):
+Slot positions on the 16 GB Citaq H10-3 (16 KiB blocks of the eMMC, normally /dev/block/mmcblk0):
   boot     block 3328, 32 MiB      recovery  block 5376, 32 MiB
 (Rockchip parameter offsets + the 0x2000-sector base; both checked live on hardware.)
 """
@@ -30,7 +30,7 @@ import sys
 BLK = 16384
 SLOTS = {'boot': 3328, 'recovery': 5376}
 SLOT_BLOCKS = 2048                 # 32 MiB each
-DEV = '/dev/block/mmcblk0'
+DEV = '/dev/block/mmcblk0'          # replaced by the eMMC found on the terminal (see main)
 BYNAME = '/dev/block/platform/ff0f0000.rksdmmc/by-name'
 TMP = '/data/local/tmp/flash_slot.img'
 
@@ -81,6 +81,11 @@ def main():
     if 'uid=0(' not in sh(adbexe, 'id'):
         sys.exit('adb is not root (adb root failed)')
     rel = sh(adbexe, 'getprop ro.build.version.release')
+    global DEV
+    found = sh(adbexe, 'for b in /sys/block/mmcblk*; do n=${b##*/}; case $n in *boot*|*rpmb*) continue;; esac; [ "$(cat $b/device/type 2>/dev/null)" = MMC ] && echo $n; done' + '; true').split()
+    if len(found) != 1:
+        sys.exit(f'expected exactly one eMMC, found {found or "none"} - stopping')
+    DEV = f'/dev/block/{found[0]}'
     bb = 'busybox ' if sh(adbexe, 'command -v busybox >/dev/null && echo yes || echo none') == 'yes' else ''
     print(f'terminal: Android {rel}; slot {slot} = {DEV} block {blk} (x16 KiB)')
 

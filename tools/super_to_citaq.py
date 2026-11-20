@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Copy the PX5 Android 10 super.img into the Citaq H10-3's eMMC "user" area, over adb.
 
-Target: /dev/block/mmcblk0p16 (stock "user" partition, 8.63 GiB) starting 1024 MiB in,
+Target: p16 ("user", 8.63 GiB) of the eMMC (/dev/block/mmcblk0p16 on stock), starting 1024 MiB in,
 i.e. after the 1 GiB that stays as stock Android's internal storage. Region size 3112 MiB
 (= the PX5 super partition, 0x614000 sectors).
 
@@ -27,9 +27,10 @@ whole-region MD5 db834dc68c97662488718f9cd9ca0495.
 """
 import sys, os, struct, hashlib, subprocess, shutil, functools
 
-PART = '/dev/block/mmcblk0p16'
+PART = '/dev/block/mmcblk0p16'     # set by locate(): the eMMC is not always mmcblk0
 P16_START = 12443648             # 6076 MiB: Rockchip parameter offsets are relative to sector 0x2000 (+4 MiB)
-P16_SECTORS = 18092032           # 8834 MiB, runs to the end of the eMMC (14910 MiB)
+P16_SECTORS = 18092032           # 8834 MiB, runs to the end of the eMMC (14910 MiB). A bigger p16 (some
+                                 # eMMCs are a little larger) is fine: everything Android 10 uses ends at 14910 MiB
 OFFSET_MIB = 1024                # super starts 1 GiB into p16
 REGION_MIB = 3112                # 0x614000 sectors
 PIECE_MIB = 128
@@ -128,13 +129,28 @@ def region_md5_local(path):
     for _, p in pieces(path): h.update(p)
     return h.hexdigest()
 
+FIND_EMMC = 'for b in /sys/block/mmcblk*; do n=${b##*/}; case $n in *boot*|*rpmb*) continue;; esac; [ "$(cat $b/device/type 2>/dev/null)" = MMC ] && echo $n; done'
+
+def locate(adbexe):
+    """Point PART at p16 of the terminal's eMMC, whatever mmcblk number it got."""
+    global PART
+    found = sh(adbexe, FIND_EMMC + '; true').split()
+    if len(found) != 1:
+        sys.exit(f'expected exactly one eMMC, found {found or "none"} - stopping')
+    PART = f'/dev/block/{found[0]}p16'
+    return PART
+
 def preflight(adbexe):
     if 'device' not in adb(adbexe, 'get-state'):
         sys.exit('no adb device')
     adb(adbexe, 'root'); adb(adbexe, 'wait-for-device')
-    sec = sh(adbexe, f'cat /sys/class/block/{os.path.basename(PART)}/size')
-    if int(sec.split()[-1]) != P16_SECTORS:
-        sys.exit(f'{PART} is {sec} sectors, expected {P16_SECTORS} - stopping')
+    locate(adbexe)
+    sec = int(sh(adbexe, f'cat /sys/class/block/{os.path.basename(PART)}/size').split()[-1])
+    if sec < P16_SECTORS:
+        sys.exit(f'{PART} is {sec} sectors, smaller than the expected {P16_SECTORS} - stopping')
+    if sec > P16_SECTORS:
+        print(f'{PART} is {sec} sectors, {(sec - P16_SECTORS) * 512 // MIB} MiB bigger than the 16 GB '
+              'reference unit - fine, the extra stays unused')
     st = sh(adbexe, f'cat /sys/class/block/{os.path.basename(PART)}/start')
     if int(st.split()[-1]) != P16_START:
         sys.exit(f'{PART} starts at sector {st}, expected {P16_START} - the Android 10 '
@@ -148,7 +164,7 @@ def preflight(adbexe):
         sys.exit(f'internal storage reads {kb} KB - is it mounted? stopping')
     if kb > 1024 * 1024:
         sys.exit(f'internal storage is still {kb} KB (> 1 GiB). Shrink it first - stopping')
-    print(f'p16 OK ({P16_SECTORS} sectors), internal storage {kb} KB - safe to write')
+    print(f'p16 OK ({PART}, start {P16_START}), internal storage {kb} KB - safe to write')
     push_rkio(adbexe)
 
 def push_rkio(adbexe):
@@ -190,6 +206,7 @@ def verify(path, adbexe):
     print('MD5 of the whole region on the PC...')
     local = region_md5_local(path)
     print('MD5 of the whole region on the terminal (about a minute)...')
+    locate(adbexe)
     push_rkio(adbexe)
     remote = sh(adbexe, f'{RKIO} r {PART} {OFFSET_MIB} {REGION_MIB} 2>/dev/null | busybox md5sum').split()[0]
     print(f'PC       {local}\nterminal {remote}')

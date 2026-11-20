@@ -62,10 +62,13 @@ adb connect <terminal-ip>:5555        # stock has network adb on; or use JP2
 adb root
 adb shell getprop ro.build.type       # must be: userdebug
 adb shell getprop ro.board.platform   # must be: rk3368
-adb shell cat /sys/class/block/mmcblk0p16/size    # must be: 18092032
+adb shell cat /sys/class/block/mmcblk0p16/size    # must be: 18092032 or a bit more
 adb shell cat /sys/class/block/mmcblk0p16/start   # must be: 12443648
 ```
-If any of these differ, stop: the partition offsets in this repo won't match your eMMC.
+If any of these differ, stop: the partition offsets in this repo won't match your eMMC. The one
+exception is the size: some eMMCs are slightly bigger (18333696 has been reported), which is fine,
+because everything Android 10 uses ends where the 16 GB reference unit's eMMC ends. The tools accept
+a bigger size and tell you how much stays unused.
 
 ## 2. Back up the whole eMMC
 

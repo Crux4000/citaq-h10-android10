@@ -11,6 +11,7 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 | Device | Board marking | eMMC | Stock build (`ro.build.display.id`) | `ro.build.type` | Result | Report |
 |---|---|---|---|---|---|---|
 | Citaq H10-3 (ex-Menulog / Just Eat) | CTE-RK3368-V1.0 | 16 GB | 20220926.JE.H10.5.1.0005 | userdebug | ✅ full port, see [What works](../README.md#what-works) | @Crux4000 |
+| Citaq H10-3, shipped with Android 6.0, flashed back to 5.1.1 (Citaq images `RK3368_6.0_H10_20211130` and `RK3368-8780-LVDS9-Citaq-20211101.1015`); printer removed | ❓ | 16 GB, p16 18333696 sectors (118 MiB bigger) | ❓ | userdebug | ✅ runs, after hand-fixes for a bigger p16 and a DTB-script bug with newer `dtc` (both fixed since); Bluetooth and heat still being looked at | [#1](https://github.com/Crux4000/citaq-h10-android10/issues/1) |
 
 ## Not tried yet
 
