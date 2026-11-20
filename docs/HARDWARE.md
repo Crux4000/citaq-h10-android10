@@ -100,29 +100,33 @@ it runs at whatever the busier cluster needs, and the little cluster needs the m
 
 | Limit | Little cluster (cpu0–3) | Big cluster (cpu4–7) | Notes |
 |---|---|---|---|
-| 1200 MHz (default) | 1.225 V | 1.15 V | fastest; about 40% more CPU heat than 1008 |
-| 1008 MHz | 1.125 V | 1.05 V | try this first if the terminal freezes |
-| 816 MHz | 1.025 V | 1.00 V | coolest; fine for a dashboard |
+| 1200 MHz | 1.225 V | 1.15 V | fastest, opt-in; about 40% more CPU heat than 1008 |
+| 1008 MHz (default) | 1.125 V | 1.05 V | barely noticeable on a dashboard |
+| 816 MHz | 1.025 V | 1.00 V | coolest; slower boot and app installs |
 
-There is no heatsink, so the chip runs hot at 1.2 GHz, and the built-in temperature reading isn't
-reliable yet (see [Known issues](../README.md#known-issues)). The boot hook reads the limit from
-`/data/citaq/cpu-max-mhz` (`816`, `1008` or `1200`; anything else means 1200) and logs what it set to
-`/data/citaq/cpu.log`.
+**Why 1008 is the default.** The stock Android 5.1 firmware allowed 1.2 GHz on the little cluster and
+1.5 GHz on the big one, so 1.2 GHz isn't beyond what the chip shipped with. But stock throttled from
+80 °C on a temperature reading it could trust. On this port the throttle (70 °C) is fed a reading that
+isn't reliable yet and probably reads low at full speed (see [Known issues](../README.md#known-issues)),
+so a hot terminal may never throttle. Until that's fixed, the default stays at 1008 MHz.
 
-Set it for every boot:
+The boot hook reads the limit from `/data/citaq/cpu-max-mhz` (`816`, `1008` or `1200`; anything else,
+or no file, means 1008) and logs what it set to `/data/citaq/cpu.log`.
+
+Set it for every boot (here 1200 to opt in to full speed):
 
 ```sh
 adb root
-adb shell "echo 1008 > /data/citaq/cpu-max-mhz"
+adb shell "echo 1200 > /data/citaq/cpu-max-mhz"
 ```
 
 Apply it now as well, without rebooting:
 
 ```sh
-adb shell 'for p in /sys/devices/system/cpu/cpufreq/policy*; do echo 1008000 > $p/scaling_max_freq; done'
+adb shell 'for p in /sys/devices/system/cpu/cpufreq/policy*; do echo 1200000 > $p/scaling_max_freq; done'
 ```
 
-Delete the file to go back to 1200 MHz. Check with
+Delete the file to go back to the default 1008 MHz. Check with
 `adb shell cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq`.
 
 ## Thermal

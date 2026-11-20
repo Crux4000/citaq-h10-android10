@@ -113,12 +113,13 @@ done
 #     the ADC directly and the temperature is real. 50 ms allows every cpuidle state, so it costs no power.
 ( exec 3> /dev/cpu_dma_latency; echo c350 >&3; while :; do sleep 86400; done ) &
 # 0f) CPU speed limit for both clusters. /data/citaq/cpu-max-mhz holds 816, 1008 or 1200; no file (or anything
-#     else) = 1200, the highest speed left in the DTB. The terminal has no heatsink: at 1.2 GHz the sensor reads
-#     about 65-70 C under light load. Both clusters share one rail, which the little cluster pulls to 1.225 V at
-#     1.2 GHz vs 1.125 V at 1008 MHz (~40% more CPU heat), so 1008 is the setting to try if a terminal freezes.
-#     1512 MHz @ 1.35 V crashed the board after ~40 s of full load (2026-11-17); those OPPs are not in the DTB.
+#     else) = 1008. The terminal has no heatsink, and the temperature reading the 70 C throttle relies on isn't
+#     trustworthy yet (fixed tsadc reference vs a scaling vdd_cpu), so the default stays at 1008 until it is.
+#     Both clusters share one rail, which the little cluster pulls to 1.225 V at 1.2 GHz vs 1.125 V at 1008 MHz
+#     (~40% more CPU heat). 1200 is opt-in. 1512 MHz @ 1.35 V crashed the board after ~40 s of full load
+#     (2026-11-17); those OPPs are not in the DTB.
 cpumax=$(cat /data/citaq/cpu-max-mhz 2>/dev/null | tr -dc 0-9)
-case "$cpumax" in 816|1008|1200) ;; *) cpumax=1200 ;; esac
+case "$cpumax" in 816|1008|1200) ;; *) cpumax=1008 ;; esac
 for p in /sys/devices/system/cpu/cpufreq/policy*; do echo ${cpumax}000 > $p/scaling_max_freq; done
 echo "$(date) cpu max $cpumax MHz" > /data/citaq/cpu.log
 # 1) Wi-Fi: use our rebuilt bcmdhd.ko instead of the vendor one (built for 4.19.101).

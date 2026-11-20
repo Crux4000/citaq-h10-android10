@@ -64,7 +64,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | 3 USB host ports | ✅ | barcode scanners, mice, flash drives, SDR dongles |
 | adb over USB (JP2) and network | ✅ | userdebug build, `adb root` works |
 | Google Play / sign-in | ✅ | with a `thermalservice` stub and a serial-number fix |
-| CPU DVFS + thermal | ✅ | 408 MHz–1.2 GHz, limit adjustable; runs warm with no heatsink, see [Known issues](#known-issues) |
+| CPU DVFS + thermal | ✅ | 408 MHz–1 GHz by default, 1.2 GHz opt-in; runs warm with no heatsink, see [Known issues](#known-issues) |
 | Back power switch | ✅ | clean shutdown and real power-off |
 | Survives a battery pull | ✅ | the boot hook re-programs the PMIC |
 | Battery % / charge status | ❌ | no RK818 driver; charging itself works |
@@ -142,10 +142,13 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
     and adb dead, nothing in the logs, back after a power-cycle. The cause isn't confirmed yet. Heat
     at 1.2 GHz is the main suspect.
 
-  **If yours freezes or runs hot**, set the CPU limit to 1008 MHz
-  ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)). A second user reports that a lower limit
-  helped, with no noticeable difference in the Home Assistant app. Please open an issue saying whether
-  it helped you. This note will be updated once there's an answer.
+  **Since 20 Nov 2026 the CPU defaults to 1008 MHz** instead of 1.2 GHz. A second user reports that a
+  lower limit helped, with no noticeable difference in the Home Assistant app. 1.2 GHz is still there
+  as an opt-in ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)) and will become the default
+  again once the temperature reading is fixed. **Installed before 20 Nov?** Your boot hook still
+  defaults to 1.2 GHz. Either re-run `install_data.py`, or just set the limit:
+  `adb shell "echo 1008 > /data/citaq/cpu-max-mhz"`. If you still get freezes at 1008 MHz, please open
+  an issue.
 
 ## Warning
 
