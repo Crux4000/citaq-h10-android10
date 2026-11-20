@@ -28,7 +28,10 @@ connect to `<terminal-ip>:5555` and gives you a `media_player` entity. Use its
 | relaunch the app | `am start -n io.homeassistant.companion.android/.launch.LaunchActivity` |
 | reboot | `reboot` |
 
-(`monkey` doesn't work on this build: it aborts with "SYS_KEYS has no physical keys".)
+(`monkey` doesn't work on this build: it aborts with "SYS_KEYS has no physical keys". Don't use it
+anyway: before aborting it resets the screen rotation to 0° and turns auto-rotate on, which turns an
+assembled terminal's display upside down. Fix with
+`adb shell "settings put system accelerometer_rotation 0; settings put system user_rotation 2"`.)
 
 The terminal accepts **one adb connection at a time**. If you connect from a PC, HA's connection
 drops until you disconnect.
