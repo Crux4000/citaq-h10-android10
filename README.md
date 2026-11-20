@@ -9,7 +9,9 @@ receipt printer, LEDs, touch, Wi-Fi, Bluetooth, sound and Google Play all work. 
 the bootloader and without repartitioning**, and the stock Android 5.1 stays on the eMMC as a
 fallback.
 
-> **Tried it? Please report back, good or bad.** So far this has been done on exactly one terminal.
+> **Tried it? Please report back, good or bad.** So far this has been done on two terminals (Just Eat's
+> build and Citaq's generic `POS_32` build). The second one's install turned up several bugs, all fixed
+> now ([#1](https://github.com/Crux4000/citaq-h10-android10/issues/1)).
 > Whether it worked, half-worked or ended in maskrom, a quick
 > **[device report](https://github.com/Crux4000/citaq-h10-android10/issues/new?template=device-report.yml)**
 > adds your unit to the **[device list](docs/DEVICES.md)** and helps the next person. Reports from other
@@ -165,7 +167,7 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
 ## Warning
 
 This writes to the eMMC of a device that has no official recovery path apart from Rockchip's
-maskrom tools. Everything here was done on one terminal and works there. The scripts check partition
+maskrom tools. It has been done on two terminals so far and works on both. The scripts check partition
 positions and MD5s before writing, and they back up what they replace. Even so, **you do this at your
 own risk**, and you should keep the full eMMC backup somewhere safe.
 

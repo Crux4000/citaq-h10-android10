@@ -8,6 +8,16 @@ Read [RECOVERY.md](RECOVERY.md) first, so you know how to get back before you st
 
 ## What you need
 
+**An up-to-date copy of this repo.** Fixes land often, so pull before you start, and again if a
+step fails in a way the docs don't describe:
+```sh
+git pull
+git log -1 --oneline        # compare with the latest commit shown on GitHub
+```
+If `git pull` refuses because you've edited files (for example a hand-fix from an earlier attempt),
+run `git stash` first. That puts your edits aside safely, and the fix you needed is usually already
+upstream.
+
 **On the bench**
 - the terminal, opened up (photos of where everything is: [HARDWARE.md → Getting inside](HARDWARE.md#getting-inside)), on its 24 V supply, with the backup LiPo connected (the board won't run without it)
 - a micro-USB cable on **JP2**, the internal adb port on the compute board behind the screen
