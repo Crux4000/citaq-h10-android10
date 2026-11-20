@@ -25,7 +25,7 @@ Needs the static arm64 `rkio` helper (src/rkio.c) next to this script.
 Known-good super.img (CHS7_PX5_10.0_IMG(20200603)): unpacks to exactly 3112 MiB,
 whole-region MD5 db834dc68c97662488718f9cd9ca0495.
 """
-import sys, os, struct, hashlib, subprocess, shutil, functools
+import sys, os, re, struct, hashlib, subprocess, shutil, functools
 
 PART = '/dev/block/mmcblk0p16'     # set by locate(): the eMMC is not always mmcblk0
 P16_START = 12443648             # 6076 MiB: Rockchip parameter offsets are relative to sector 0x2000 (+4 MiB)
@@ -119,8 +119,10 @@ RESUME = None
 
 def kernel_errors(adbexe):
     """Recent eMMC/block errors from the kernel log, if any (helps tell a failing board from a bad cable)."""
-    out = adb(adbexe, 'shell', 'dmesg | grep -i -E "mmc|i/o error|blk_update|end_request|ext4.*error|crc" | tail -15')
-    return out.strip()
+    # filter here, not on the terminal: stock 5.1 has no tail (and its grep can't be relied on)
+    pat = re.compile(r'mmc|i/o error|blk_update|end_request|ext4.*error|crc', re.I)
+    lines = [l for l in adb(adbexe, 'shell', 'dmesg').splitlines() if pat.search(l)]
+    return '\n'.join(lines[-15:])
 
 def sh(adbexe, cmd, marker='__OK__', diagnose=False):
     out = adb(adbexe, 'shell', cmd + f' && echo {marker}')

@@ -151,14 +151,23 @@ Each command runs a preflight first. It checks p16's exact start and size, and t
 is ≤ 1 GiB, before anything is written.
 
 ```sh
-python tools/super_to_citaq.py write super.img adb          # ~3 GB in 128 MiB pieces, each MD5-checked and read back, then a full verify
-python tools/super_to_citaq.py nofbe super.img adb          # /data without file-based encryption (no OP-TEE on the Citaq)
-python tools/super_files.py patch super.img adb patches/services_patch.json
-python tools/super_files.py patch super.img adb patches/oat_rename.json
-python tools/super_files.py patch super.img adb patches/services_patch2.json
-python tools/super_files.py patch super.img adb patches/touch_service.json
-python tools/super_to_citaq.py zero adb                     # blank metadata/cache/userdata so Android 10 formats them
+python tools/super_to_citaq.py write super.img adb &&
+python tools/super_to_citaq.py nofbe super.img adb &&
+python tools/super_files.py patch super.img adb patches/services_patch.json &&
+python tools/super_files.py patch super.img adb patches/oat_rename.json &&
+python tools/super_files.py patch super.img adb patches/services_patch2.json &&
+python tools/super_files.py patch super.img adb patches/touch_service.json &&
+python tools/super_to_citaq.py zero adb && echo "STEP 7 DONE"
 ```
+In a Linux/WSL/macOS shell the `&&` makes the first failure stop everything after it, so it's safe to
+paste the whole block. On Windows, run the commands one at a time and don't go on if one stops. If you
+don't see `STEP 7 DONE` at the end, fix what stopped and carry on from that command (for `write`, with
+the `--start N` it gives you). What each one does:
+- `write`: about 3 GB in 128 MiB pieces, each MD5-checked and read back, then a full verify
+- `nofbe`: /data without file-based encryption (there's no OP-TEE on the Citaq)
+- the four `patch` commands: services, odex renames and the touch service
+- `zero`: blanks metadata/cache/userdata so Android 10 formats them on first boot
+
 Keep the **24 V supply connected** for this step. Running the board from the micro-USB cable alone
 isn't enough for long eMMC writes.
 
