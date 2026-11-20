@@ -20,7 +20,7 @@ the backups that `flash_slot.py` and step 2 of the install make.
 **Android 10 is the default boot:** put the stock boot slot back from the backup that
 `flash_slot.py ... boot` saved. Run this from Android 10 (or from the recovery slot):
 ```sh
-python tools/flash_slot.py ADB boot boot-backup-YYYYMMDD-HHMMSS.img
+python tools/flash_slot.py adb boot boot-backup-YYYYMMDD-HHMMSS.img
 adb reboot
 ```
 Stock's own `/data` was never touched. Its internal storage was reformatted to 1 GiB in install
@@ -28,7 +28,7 @@ step 6, so it starts out empty. Android 10's partitions stay in the user area, a
 them.
 
 **Put the stock recovery back** (optional):
-`flash_slot.py ADB recovery recovery-backup-....img` (or the `recovery.img` from install step 2).
+`flash_slot.py adb recovery recovery-backup-....img` (or the `recovery.img` from install step 2).
 
 ## Boot loops and hangs
 

@@ -25,7 +25,7 @@ Needs the static arm64 `rkio` helper (src/rkio.c) next to this script.
 Known-good super.img (CHS7_PX5_10.0_IMG(20200603)): unpacks to exactly 3112 MiB,
 whole-region MD5 db834dc68c97662488718f9cd9ca0495.
 """
-import sys, os, struct, hashlib, subprocess
+import sys, os, struct, hashlib, subprocess, shutil, functools
 
 PART = '/dev/block/mmcblk0p16'
 P16_START = 12443648             # 6076 MiB: Rockchip parameter offsets are relative to sector 0x2000 (+4 MiB)
@@ -94,8 +94,21 @@ def pieces(path):
         yield idx, bytes(buf[:want]); del buf[:want]
         idx += 1; done += want
 
+
+@functools.lru_cache(maxsize=None)
+def find_adb(name):
+    """The adb argument as given, or found on PATH. Accepts the docs' ADB placeholder on Linux/macOS too."""
+    if os.path.isfile(name):
+        return name
+    for n in (name, name.lower()):
+        p = shutil.which(n)
+        if p:
+            return p
+    sys.exit(f'adb not found: "{name}". Put adb on your PATH or give its full path '
+             '(e.g. C:\\platform-tools\\adb.exe or ~/platform-tools/adb).')
+
 def adb(adbexe, *args, check_out=None):
-    r = subprocess.run([adbexe, *args], capture_output=True, text=True)
+    r = subprocess.run([find_adb(adbexe), *args], capture_output=True, text=True)
     out = (r.stdout + r.stderr).strip()
     if check_out and check_out not in out:
         sys.exit(f'adb {" ".join(args)} failed:\n{out}')

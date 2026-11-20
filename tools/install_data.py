@@ -22,6 +22,8 @@ and again after any factory reset. Missing optional files are skipped; missing r
 """
 import hashlib
 import os
+import functools
+import shutil
 import subprocess
 import sys
 
@@ -34,8 +36,21 @@ TARGET = {'citaq-boot.sh': 'ilits'}          # init's akmd service runs /data/ci
 EXEC = {'citaq-boot.sh', 'ilits.bin', 'blshim', 'volshim', 'propset'}
 
 
+
+@functools.lru_cache(maxsize=None)
+def find_adb(name):
+    """The adb argument as given, or found on PATH. Accepts the docs' ADB placeholder on Linux/macOS too."""
+    if os.path.isfile(name):
+        return name
+    for n in (name, name.lower()):
+        p = shutil.which(n)
+        if p:
+            return p
+    sys.exit(f'adb not found: "{name}". Put adb on your PATH or give its full path '
+             '(e.g. C:\\platform-tools\\adb.exe or ~/platform-tools/adb).')
+
 def run(adbexe, *args):
-    r = subprocess.run([adbexe, *args], capture_output=True, text=True)
+    r = subprocess.run([find_adb(adbexe), *args], capture_output=True, text=True)
     return (r.stdout + r.stderr).strip()
 
 

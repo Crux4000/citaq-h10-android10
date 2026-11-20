@@ -49,8 +49,9 @@ Only that exact PX5 image works. Other PX5 Android 10 images have different file
 `patches/` check MD5s and will refuse them. Step 3 confirms you have the right one:
 `super_to_citaq.py check` must report whole-region MD5 `db834dc68c97662488718f9cd9ca0495`.
 
-Throughout, `adb` means your adb and `ADB` in tool arguments is the path to it (e.g. `adb` or
-`C:\platform-tools\adb.exe`).
+Throughout, `adb` means your adb. The tools take it as their first argument: plain `adb` works if it's
+on your PATH, otherwise give the full path (e.g. `C:\platform-tools\adb.exe` or `~/platform-tools/adb`).
+The commands work the same on Windows and Linux.
 
 ---
 
@@ -147,13 +148,13 @@ Each command runs a preflight first. It checks p16's exact start and size, and t
 is ≤ 1 GiB, before anything is written.
 
 ```sh
-python tools/super_to_citaq.py write super.img ADB          # ~3 GB in 128 MiB pieces, each MD5-checked, then a full verify
-python tools/super_to_citaq.py nofbe super.img ADB          # /data without file-based encryption (no OP-TEE on the Citaq)
-python tools/super_files.py patch super.img ADB patches/services_patch.json
-python tools/super_files.py patch super.img ADB patches/oat_rename.json
-python tools/super_files.py patch super.img ADB patches/services_patch2.json
-python tools/super_files.py patch super.img ADB patches/touch_service.json
-python tools/super_to_citaq.py zero ADB                     # blank metadata/cache/userdata so Android 10 formats them
+python tools/super_to_citaq.py write super.img adb          # ~3 GB in 128 MiB pieces, each MD5-checked, then a full verify
+python tools/super_to_citaq.py nofbe super.img adb          # /data without file-based encryption (no OP-TEE on the Citaq)
+python tools/super_files.py patch super.img adb patches/services_patch.json
+python tools/super_files.py patch super.img adb patches/oat_rename.json
+python tools/super_files.py patch super.img adb patches/services_patch2.json
+python tools/super_files.py patch super.img adb patches/touch_service.json
+python tools/super_to_citaq.py zero adb                     # blank metadata/cache/userdata so Android 10 formats them
 ```
 If `write` stops part-way, re-run it with `--start N` as it tells you. Run the patches **in this
 order**, because each one checks the bytes it expects to find.
@@ -161,7 +162,7 @@ order**, because each one checks the bytes it expects to find.
 ## 8. Put Android 10 in the recovery slot
 
 ```sh
-python tools/flash_slot.py ADB recovery citaq-a10.img
+python tools/flash_slot.py adb recovery citaq-a10.img
 ```
 It checks the slot position, saves `recovery-backup-<time>.img` (keep it!), pushes the image,
 checks the MD5, asks you to confirm, writes, and reads it back.
@@ -188,7 +189,7 @@ Put these in one folder: `device/citaq-boot.sh`, `src/out/{ilits.bin,blshim,vols
 `bootlogo.png`, and for Bluetooth `BCM4345C5.hcd` plus `device/bt/bt_vendor.conf`.
 
 ```sh
-python tools/install_data.py ADB that-folder/
+python tools/install_data.py adb that-folder/
 adb reboot recovery
 ```
 On this boot, touch, Wi-Fi, sound, brightness, the printer/LEDs and network adb (port 5555) all come up.
@@ -203,7 +204,7 @@ Bluetooth is ready too; switch it on from quick settings. [BLUETOOTH.md](BLUETOO
 
 Once you're happy:
 ```sh
-python tools/flash_slot.py ADB boot citaq-a10.img
+python tools/flash_slot.py adb boot citaq-a10.img
 ```
 This saves the stock **boot** slot as `boot-backup-<time>.img`. Keep that file: it's how you get stock
 5.1 back. The stock kernel lives in a separate partition that's never touched. From now on every
@@ -241,5 +242,5 @@ See [HOME-ASSISTANT.md](HOME-ASSISTANT.md).
 
 ## Updating the boot image later
 
-Rebuild (step 5), then `flash_slot.py ADB boot new.img`. You can update the recovery slot as well,
+Rebuild (step 5), then `flash_slot.py adb boot new.img`. You can update the recovery slot as well,
 or keep the old image there as a known-good spare.
