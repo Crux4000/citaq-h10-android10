@@ -11,7 +11,7 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 | Device | Board marking | eMMC | Stock build (`ro.build.display.id`) | `ro.build.type` | Result | Report |
 |---|---|---|---|---|---|---|
 | Citaq H10-3 (ex-Menulog / Just Eat) | CTE-RK3368-V1.0 | 16 GB | 20220926.JE.H10.5.1.0005 | userdebug | ✅ full port, see [What works](../README.md#what-works) | @Crux4000 |
-| Citaq H10-3, shipped with Android 6.0, flashed back to 5.1.1 (Citaq images `RK3368_6.0_H10_20211130` and `RK3368-8780-LVDS9-Citaq-20211101.1015`); printer removed | ❓ | 16 GB, p16 18333696 sectors (118 MiB bigger) | ❓ | userdebug | ✅ runs, after hand-fixes for a bigger p16 and a DTB-script bug with newer `dtc` (both fixed since); Bluetooth and heat still being looked at | [#1](https://github.com/Crux4000/citaq-h10-android10/issues/1) |
+| Citaq H10-3, shipped with Android 6.0, flashed back to 5.1.1 with Citaq's `RK3368-8780-LVDS9-Citaq-20211101.1015` image (also has `RK3368_6.0_H10_20211130`); printer removed. `ro.product.device` = `Citaq_32` | CTE-RK3368-V1.0 20180801 | 16 GB (15,028 MiB; p16 18333696 sectors, 118 MiB bigger) | POS_32-userdebug-20211101.1015 | userdebug | ✅ runs, after hand-fixes for the bigger p16 and a DTB-script bug with newer `dtc` (both fixed since); Bluetooth and heat still being looked at; a clean run of the fixed scripts on a second board is in progress | [#1](https://github.com/Crux4000/citaq-h10-android10/issues/1) |
 
 ## Not tried yet
 
@@ -24,7 +24,7 @@ slot) and [Tips for the next person](PORTING-NOTES.md#tips-for-the-next-person) 
 
 | Device | Why it's interesting | Status |
 |---|---|---|
-| **Citaq H10-3 with a different stock build** | The root method needs a `userdebug` build. Nobody knows yet which other builds shipped. | ❓ |
+| **Citaq H10-3 with a different stock build** | The root method needs a `userdebug` build. Citaq's generic `POS_32-userdebug` build works too (see above); other builds are still unknown. | ⚠️ one more found |
 | Other Citaq models | Worth checking `ro.board.platform`. If it says `rk3368`, the port is a DTB away. | ❓ |
 | Beelink i68 / Tronsmart Orion R68 | RK3368 TV boxes from 2015. Rockchip shipped DTBs for the Orion R68 and similar boards | ❓ |
 | GeekBox | RK3368 box with a public Android 5.1 SDK and kernel source | ❓ |
