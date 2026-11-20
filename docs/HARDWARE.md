@@ -104,8 +104,8 @@ it runs at whatever the busier cluster needs, and the little cluster needs the m
 | 1008 MHz | 1.125 V | 1.05 V | try this first if the terminal freezes |
 | 816 MHz | 1.025 V | 1.00 V | coolest; fine for a dashboard |
 
-There is no heatsink, so at 1.2 GHz the sensor reads about 65–70 °C under light load (see
-[Known issues](../README.md#known-issues)). The boot hook reads the limit from
+There is no heatsink, so the chip runs hot at 1.2 GHz, and the built-in temperature reading isn't
+reliable yet (see [Known issues](../README.md#known-issues)). The boot hook reads the limit from
 `/data/citaq/cpu-max-mhz` (`816`, `1008` or `1200`; anything else means 1200) and logs what it set to
 `/data/citaq/cpu.log`.
 

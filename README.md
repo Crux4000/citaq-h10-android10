@@ -129,16 +129,23 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
 
 ## Known issues
 
-- **It runs warm, and one freeze is under investigation.** These terminals have no heatsink on the
-  SoC, and there are only a couple of millimetres between the chip and the case. At the default
-  1.2 GHz the temperature sensor reads about 65–70 °C with the terminal just showing a dashboard. The
-  sensor is coarse and was only checked against a real thermometer at around 40 °C, so treat that as
-  a rough figure. On 19 Nov 2026 one terminal froze after about 3 hours at 1.2 GHz: screen off,
-  touch and adb dead, nothing in the logs, back after a power-cycle. It was the first freeze in two
-  days and the cause isn't confirmed yet. Heat at 1.2 GHz is the main suspect.
-  **If yours freezes**, set the CPU limit to 1008 MHz
-  ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)) and please open an issue saying whether it
-  helped. This note will be updated once there's an answer.
+- **It runs hot, and one freeze is under investigation.** These terminals have no heatsink on the
+  SoC, and there are only a couple of millimetres between the chip and the case.
+  - **Don't trust the built-in temperature reading yet.** The port's sensor driver corrects the
+    reading against a fixed CPU voltage, but the voltage actually scales between 1.0 and 1.225 V. So
+    the reading jumps around (42 °C and 69 °C a few minutes apart has been seen) and probably reads low
+    at full speed. A fix is being worked on and will be checked against a real probe first.
+  - **Real measurement:** a probe inside the closed case, next to the SoC but not touching it, was
+    about 20 °C above room temperature after half an hour at 1.2 GHz and still rising. The chip itself
+    is hotter than the air around it. A second terminal reported the SoC hot enough to burn a finger.
+  - **Freeze:** on 19 Nov 2026 one terminal froze after about 3 hours at 1.2 GHz: screen off, touch
+    and adb dead, nothing in the logs, back after a power-cycle. The cause isn't confirmed yet. Heat
+    at 1.2 GHz is the main suspect.
+
+  **If yours freezes or runs hot**, set the CPU limit to 1008 MHz
+  ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)). A second user reports that a lower limit
+  helped, with no noticeable difference in the Home Assistant app. Please open an issue saying whether
+  it helped you. This note will be updated once there's an answer.
 
 ## Warning
 
