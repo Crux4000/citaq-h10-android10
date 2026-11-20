@@ -49,7 +49,7 @@ def find_adb(name):
              '(e.g. C:\\platform-tools\\adb.exe or ~/platform-tools/adb).')
 
 def run(adbexe, *args):
-    r = subprocess.run([find_adb(adbexe), *args], capture_output=True, text=True)
+    r = subprocess.run([find_adb(adbexe), *args], capture_output=True, encoding='utf-8', errors='replace')
     return (r.stdout + r.stderr).strip()
 
 
@@ -98,10 +98,16 @@ def main():
             sys.exit(f'{link} = {part} starts at sector {start}, expected {blk * BLK // 512} - stopping')
         print(f'  {link} -> {part}, start sector {start}: matches')
     else:
-        head = sh(adbexe, f'{bb}dd if={DEV} bs={BLK} skip={blk} count=1 2>/dev/null | head -c 8')
-        if head != 'ANDROID!' and not head.startswith('KRNL'):
-            sys.exit(f'no boot image found at block {blk} (header {head!r}) - stopping')
-        print(f'  block {blk} holds a boot image ({head[:8]!r}): OK')
+        # read the first 8 bytes as hex: a Rockchip KRNL header has a binary size right after "KRNL"
+        hexes = sh(adbexe, f'{bb}dd if={DEV} bs={BLK} skip={blk} count=1 2>/dev/null | {bb}od -An -tx1 -N8')
+        try:
+            head = bytes(int(h, 16) for h in hexes.split())
+        except ValueError:
+            sys.exit(f'could not read the slot header (od said {hexes!r}) - stopping')
+        if head != b'ANDROID!' and head[:4] != b'KRNL':
+            sys.exit(f'no boot image found at block {blk} (header {head.hex(" ")}) - stopping')
+        kind = 'Android' if head == b'ANDROID!' else 'Rockchip KRNL'
+        print(f'  block {blk} holds a boot image ({kind} header): OK')
 
     # 3. backup
     stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')

@@ -109,7 +109,7 @@ def find_adb(name):
              '(e.g. C:\\platform-tools\\adb.exe or ~/platform-tools/adb).')
 
 def adb(adbexe, *args, check_out=None):
-    r = subprocess.run([find_adb(adbexe), *args], capture_output=True, text=True)
+    r = subprocess.run([find_adb(adbexe), *args], capture_output=True, encoding='utf-8', errors='replace')
     out = (r.stdout + r.stderr).strip()
     if check_out and check_out not in out:
         sys.exit(f'adb {" ".join(args)} failed:\n{out}')
