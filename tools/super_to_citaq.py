@@ -117,11 +117,20 @@ def adb(adbexe, *args, check_out=None):
 
 RESUME = None
 
-def sh(adbexe, cmd, marker='__OK__'):
+def kernel_errors(adbexe):
+    """Recent eMMC/block errors from the kernel log, if any (helps tell a failing board from a bad cable)."""
+    out = adb(adbexe, 'shell', 'dmesg | grep -i -E "mmc|i/o error|blk_update|end_request|ext4.*error|crc" | tail -15')
+    return out.strip()
+
+def sh(adbexe, cmd, marker='__OK__', diagnose=False):
     out = adb(adbexe, 'shell', cmd + f' && echo {marker}')
     if marker not in out:
         hint = f'\nResume with: --start {RESUME}' if RESUME is not None else ''
-        sys.exit(f'terminal command failed:\n  {cmd}\n{out}{hint}')
+        extra = ''
+        if diagnose:
+            k = kernel_errors(adbexe)
+            extra = ('\nRecent eMMC/block messages from the kernel:\n' + k) if k else '\n(no eMMC errors in the kernel log)'
+        sys.exit(f'\nterminal command failed:\n  {cmd}\n{out or "(no output)"}{extra}{hint}')
     return out.replace(marker, '').strip()
 
 def region_md5_local(path):
@@ -190,17 +199,38 @@ def write(path, adbexe, start=0):
             continue
         md5 = hashlib.md5(p).hexdigest()
         open(tmp, 'wb').write(p)
-        adb(adbexe, 'push', tmp, TMP, check_out='pushed')
-        got = sh(adbexe, f'busybox md5sum {TMP}').split()[0]
-        if got != md5:
-            sys.exit(f'piece {idx}: md5 mismatch after push ({got} != {md5}). Re-run with --start {idx}')
-        print(f'piece {idx + 1}/{n}: pushed, writing...', end='\r')
-        sh(adbexe, f'{RKIO} w {TMP} {PART} {seek}')
+        push_piece(adbexe, tmp, md5, idx)
+        print(f'piece {idx + 1}/{n}: pushed, writing...', flush=True)
+        sh(adbexe, f'{RKIO} w {TMP} {PART} {seek}', diagnose=True)
         sh(adbexe, f'rm {TMP}')
-        print(f'piece {idx + 1}/{n}: {cnt} MiB written at {seek} MiB, md5 {md5}')
+        back = sh(adbexe, f'{RKIO} r {PART} {seek} {cnt} 2>/dev/null | busybox md5sum', diagnose=True).split()[0]
+        if back != md5:
+            sys.exit(f'\npiece {idx + 1}: read back from the eMMC as {back}, expected {md5}.\n'
+                     'The write did not stick. That points at the eMMC itself (or power to the board) rather than '
+                     'the USB link.\n' + (kernel_errors(adbexe) or '(no eMMC errors in the kernel log)') +
+                     f'\nResume with: --start {idx}')
+        print(f'piece {idx + 1}/{n}: {cnt} MiB written at {seek} MiB and read back OK, md5 {md5}')
     os.remove(tmp) if os.path.exists(tmp) else None
     RESUME = None
     verify(path, adbexe)
+
+def push_piece(adbexe, tmp, md5, idx, tries=3):
+    """Push a piece and check it on the terminal. A mismatch is retried; the second md5 read tells a
+    corrupted transfer (stable wrong value) from storage/RAM that reads back differently each time."""
+    for t in range(1, tries + 1):
+        adb(adbexe, 'push', tmp, TMP, check_out='pushed')
+        got = sh(adbexe, f'busybox md5sum {TMP}').split()[0]
+        if got == md5:
+            return
+        again = sh(adbexe, f'busybox md5sum {TMP}').split()[0]
+        kind = ('the same wrong value twice, so the copy on the terminal is wrong (USB cable/port, or the '
+                'write to /data)') if again == got else (f'a different value on a second read ({again}), so '
+                'the terminal\'s storage or RAM is returning unstable data')
+        print(f'piece {idx + 1}: md5 mismatch after push, attempt {t}/{tries}: got {got}, expected {md5}; {kind}',
+              flush=True)
+    sys.exit(f'\npiece {idx + 1}: still corrupt after {tries} pushes - stopping.\n'
+             + (kernel_errors(adbexe) or '(no eMMC errors in the kernel log)') +
+             f'\nTry another cable/USB port and the 24 V supply connected, then resume with: --start {idx}')
 
 def verify(path, adbexe):
     print('MD5 of the whole region on the PC...')

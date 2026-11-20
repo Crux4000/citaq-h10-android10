@@ -151,7 +151,7 @@ Each command runs a preflight first. It checks p16's exact start and size, and t
 is ≤ 1 GiB, before anything is written.
 
 ```sh
-python tools/super_to_citaq.py write super.img adb          # ~3 GB in 128 MiB pieces, each MD5-checked, then a full verify
+python tools/super_to_citaq.py write super.img adb          # ~3 GB in 128 MiB pieces, each MD5-checked and read back, then a full verify
 python tools/super_to_citaq.py nofbe super.img adb          # /data without file-based encryption (no OP-TEE on the Citaq)
 python tools/super_files.py patch super.img adb patches/services_patch.json
 python tools/super_files.py patch super.img adb patches/oat_rename.json
@@ -159,8 +159,18 @@ python tools/super_files.py patch super.img adb patches/services_patch2.json
 python tools/super_files.py patch super.img adb patches/touch_service.json
 python tools/super_to_citaq.py zero adb                     # blank metadata/cache/userdata so Android 10 formats them
 ```
-If `write` stops part-way, re-run it with `--start N` as it tells you. Run the patches **in this
-order**, because each one checks the bytes it expects to find.
+Keep the **24 V supply connected** for this step. Running the board from the micro-USB cable alone
+isn't enough for long eMMC writes.
+
+If `write` stops part-way, re-run it with `--start N` as it tells you. When it stops, it says why:
+- **md5 mismatch after push, the same wrong value twice**: the copy didn't arrive intact. It retries
+  by itself; if it keeps failing, try another USB cable or port (no hubs).
+- **a different value on a second read**, or a piece that **doesn't read back** after writing, or
+  `rkio: write: Input/output error`: the terminal's own storage or RAM is misbehaving. It prints the
+  kernel's eMMC messages to help tell which. On a board that does this every time, suspect the
+  hardware, not the files.
+
+Run the patches **in this order**, because each one checks the bytes it expects to find.
 
 ## 8. Put Android 10 in the recovery slot
 
@@ -187,14 +197,24 @@ To go back to stock at any point, `adb reboot` (normal boot = stock 5.1 until st
 
 ## 10. Install the boot hook and helpers
 
-Put these in one folder: `device/citaq-boot.sh`, `src/out/{ilits.bin,blshim,volshim,propset}`,
-`src/thermalstub/thermalstub.jar` and `bcmdhd.ko` (from the release). Optionally add a 1024×768
-`bootlogo.png`, and for Bluetooth `BCM4345C5.hcd` plus `device/bt/bt_vendor.conf`.
+`install_data.py` takes **one folder with every file loose in it** (no subfolders). Build it like this:
 
 ```sh
-python tools/install_data.py adb that-folder/
+mkdir install
+cp device/citaq-boot.sh src/out/ilits.bin src/out/blshim src/out/volshim src/out/propset install/
+cp src/thermalstub/thermalstub.jar install/
+cp ~/Downloads/bcmdhd.ko install/                 # from this repo's releases page
+# optional: Bluetooth (both files, or it's skipped)
+cp device/bt/bt_vendor.conf install/
+curl -L -o install/BCM4345C5.hcd https://raw.githubusercontent.com/armbian/firmware/bf5f7a802b8e1998e6bf95daed5ea965441af83d/BCM4345C5.hcd
+# optional: a 1024x768 boot logo
+# cp my-logo.png install/bootlogo.png
+
+python tools/install_data.py adb install/
 adb reboot recovery
 ```
+Check its output: with the Bluetooth files you should see `BCM4345C5.hcd -> /data/citaq/bt/...  ok`.
+If it says `bluetooth skipped`, one of the two files wasn't in the folder.
 On this boot, touch, Wi-Fi, sound, brightness, the printer/LEDs and network adb (port 5555) all come up.
 Bluetooth is ready too; switch it on from quick settings. [BLUETOOTH.md](BLUETOOTH.md) has the checks.
 `/data/citaq/*.log` shows what the hook did.

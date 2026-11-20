@@ -22,9 +22,14 @@ SRS-XB13 speaker: pairs, A2DP and HFP connect, music streams with no drops.
 curl -LO https://raw.githubusercontent.com/armbian/firmware/bf5f7a802b8e1998e6bf95daed5ea965441af83d/BCM4345C5.hcd
 ```
 
-MD5 `fc394331d03baa5847e2b5de94ffbc9b`, 45,667 bytes. Put it in the install folder next to
-`device/bt/bt_vendor.conf`, and `tools/install_data.py` installs both (it checks the MD5 first).
-Leave them out and Bluetooth is simply skipped.
+MD5 `fc394331d03baa5847e2b5de94ffbc9b`, 45,667 bytes. Copy it **and** `device/bt/bt_vendor.conf` loose
+into the folder you give `tools/install_data.py` (the same folder as `citaq-boot.sh` and the rest;
+[INSTALL.md step 10](INSTALL.md#10-install-the-boot-hook-and-helpers) has the exact commands). It
+installs both and checks the MD5 first. If either is missing, it prints `bluetooth skipped` and
+carries on.
+
+**Already installed without them?** Add the two files to that folder and run `install_data.py` again.
+It's safe to re-run. Reboot afterwards so the boot hook picks them up.
 
 ## 1. Device tree
 
