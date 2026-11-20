@@ -61,5 +61,17 @@ adb shell cat /proc/partitions
   report on its own.
 - In `/proc/partitions`, the `mmcblk0` line (in KB) gives the eMMC size.
 
+**Also very useful: your stock device tree.** It shows how your board is wired (sound codec,
+Wi-Fi/Bluetooth power and clock pins, panel, touch), which is the first thing to compare when
+something works on one terminal and not another. This copies it off read-only, on stock 5.1 or
+after installing Android 10 (the install never touches it):
+
+```
+python tools/dump_stock_dtb.py adb
+```
+
+It writes `stock-dtb/rk-kernel.dtb` (and `rk-kernel.dts` if `dtc` is installed). Attach either to
+your report. A device tree contains no serial numbers or MAC addresses.
+
 Please **don't** post serial numbers, IMEIs, MAC addresses or IP addresses. `getprop ro.serialno` and
 `/proc/cmdline` both contain the serial, so leave them out.
