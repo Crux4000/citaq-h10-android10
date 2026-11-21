@@ -153,7 +153,12 @@ case "$cpumax" in
 esac
 echo ${lit}000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
 echo ${big}000 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-echo "$(date) cpu max $cpumax MHz (cpu0-3 $lit, cpu4-7 $(($(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq) / 1000)))" > /data/citaq/cpu.log
+# Log the limit we set, not scaling_max_freq read back: by now the boot-time throttle may already have pulled
+# that down (it logged 816 on a 1512 terminal). cpuinfo_max_freq is the highest OPP the DTB offers, so an older
+# DTB without 1512 still shows up here.
+top=$(($(cat /sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq) / 1000))
+[ "$big" -gt "$top" ] && big="$top (DTB tops out at $top)"
+echo "$(date) cpu max $cpumax MHz (cpu0-3 $lit, cpu4-7 $big)" > /data/citaq/cpu.log
 # 1) Wi-Fi: use our rebuilt bcmdhd.ko instead of the vendor one (built for 4.19.101).
 mount -o bind /data/citaq/bcmdhd.ko /vendor/lib/modules/bcmdhd.ko
 # 2) Sound: open the codec's playback path. RT5651: DAC -> line out + headphone out. ES8316: DAC -> headphone
