@@ -58,7 +58,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Bluetooth (BCM4345C5 / BCM4345C0) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
 | 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**, see [docs/MODEM.md](docs/MODEM.md) |
-| Sound (RT5651 or ES8316 + speaker amp) | ✅ | the boot hook detects which codec is fitted; Android volume works through `volshim`. ES8316 sound confirmed on a second terminal (21 Nov 2026); its volume slider fix is awaiting a test |
+| Sound (RT5651 or ES8316 + speaker amp) | ✅ | the boot hook detects which codec is fitted; Android volume works through `volshim`. Detection confirmed on both: RT5651 on the reference terminal (22 Nov 2026), ES8316 on a second terminal (21 Nov 2026); the ES8316 volume slider fix is awaiting a test |
 | Headphone jack | ✅ | built-in speakers mute while something is plugged in |
 | Brightness slider | ✅ | through `blshim` |
 | Receipt printer (`/dev/ttyS1`) | ✅ | ESC/POS, same paths as stock, so existing scripts keep working |
