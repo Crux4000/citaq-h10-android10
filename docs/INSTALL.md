@@ -52,7 +52,7 @@ check it against the version or MD5 given here.
 | Google Play services (step 13) | `26.45.31` or newer: arm64-v8a + armeabi-v7a, nodpi, min API 28 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-services/) |
 | Google Play Store (step 13) | `54.1.11` or newer: universal, min API 29 | [APKMirror](https://www.apkmirror.com/apk/google-inc/google-play-store/) |
 | Wi-Fi driver | `bcmdhd-citaq.ko` (or build it: [WIFI.md](WIFI.md)) | [this repo's releases](https://github.com/Crux4000/citaq-h10-android10/releases) |
-| Bluetooth firmware (optional) | `BCM4345C5.hcd`, MD5 `fc394331d03baa5847e2b5de94ffbc9b` | Armbian firmware, link in [BLUETOOTH.md](BLUETOOTH.md) |
+| Bluetooth firmware (optional) | `BCM4345C5.hcd` (AP6256) and `BCM4345C0.hcd` (AP6255); get both | Armbian firmware, links and MD5s in [BLUETOOTH.md](BLUETOOTH.md) |
 
 Check the zip before unpacking it: `certutil -hashfile <zip> MD5` on Windows, `md5sum <zip>` on Linux.
 Only that exact PX5 image works. Other PX5 Android 10 images have different files, and the patches in
@@ -223,19 +223,21 @@ mkdir install
 cp device/citaq-boot.sh src/out/ilits.bin src/out/blshim src/out/volshim src/out/propset install/
 cp src/thermalstub/thermalstub.jar install/
 cp ~/Downloads/bcmdhd.ko install/                 # from this repo's releases page
-# optional: Bluetooth (both files, or it's skipped)
+# optional: Bluetooth (the config + both firmware files; the right one is picked at runtime)
 cp device/bt/bt_vendor.conf install/
 curl -L -o install/BCM4345C5.hcd https://raw.githubusercontent.com/armbian/firmware/bf5f7a802b8e1998e6bf95daed5ea965441af83d/BCM4345C5.hcd
+curl -L -o install/BCM4345C0.hcd https://raw.githubusercontent.com/armbian/firmware/db8cc456dad5ad511b04f8a5130acda392cad20b/BCM4345C0.hcd
 # optional: a 1024x768 boot logo
 # cp my-logo.png install/bootlogo.png
 
 python tools/install_data.py adb install/
 adb reboot recovery
 ```
-Check its output: with the Bluetooth files you should see `BCM4345C5.hcd -> /data/citaq/bt/...  ok`.
-If it says `bluetooth skipped`, one of the two files wasn't in the folder.
+Check its output: with the Bluetooth files you should see `BCM4345C5.hcd -> /data/citaq/bt/...  ok` (and
+the same for `BCM4345C0.hcd`). If it says `bluetooth skipped`, the files weren't in the folder.
 On this boot, touch, Wi-Fi, sound, brightness, the printer/LEDs and network adb (port 5555) all come up.
-Bluetooth is ready too; switch it on from quick settings. [BLUETOOTH.md](BLUETOOTH.md) has the checks.
+Bluetooth is ready too; switch it on from quick settings (if the tile does nothing, run
+`adb shell svc bluetooth enable` once). [BLUETOOTH.md](BLUETOOTH.md) has the checks.
 `/data/citaq/*.log` shows what the hook did.
 
 > The boot hook rotates the screen 180° (`user_rotation 2`) for the **assembled** case. On the bench

@@ -1,32 +1,40 @@
 # Bluetooth
 
-The H10-3's Wi-Fi module is an **AP6256**, and its Bluetooth half is a **BCM4345C5** on **UART0**
-(`/dev/ttyS0`). The Android 10 port drives it with the PX5 ROM's own Bluetooth stack and Broadcom
+Citaq fits one of two Wi-Fi/Bluetooth modules: an **AP6256** (Bluetooth **BCM4345C5**, the reference
+terminal) or an **AP6255** (Bluetooth **BCM4345C0**, a second terminal). Either way the Bluetooth half is on
+**UART0** (`/dev/ttyS0`). The Android 10 port drives it with the PX5 ROM's own Bluetooth stack and Broadcom
 `libbt-vendor.so`. Four things had to be fixed before it worked:
 
 | # | Problem | Fix |
 |---|---|---|
 | 1 | No Bluetooth rfkill switch, so Android can't power the chip | `wireless-bluetooth` node in the DTB (`dtb/make_citaq_a10_dtb.sh`) |
-| 2 | The ROM has no BCM4345C5 firmware | `BCM4345C5.hcd` + `bt_vendor.conf` in `/data/citaq/bt`, bind-mounted over `/vendor/etc/bluetooth` |
+| 2 | The ROM has no Bluetooth firmware where the Bluetooth library looks | `BCM4345C5.hcd` / `BCM4345C0.hcd` + `bt_vendor.conf` in `/data/citaq/bt`, bind-mounted over `/vendor/etc/bluetooth` |
 | 3 | The PX5 GPS service holds `/dev/ttyS0` | point it at a dummy port instead (it must keep running) |
 | 4 | The MTC Bluetooth app only *pretends* to switch on | `setprop hct.bt.org true` |
 
 Fixes 2–4 are done by the boot hook (`device/citaq-boot.sh`, section `00b5`). Tested with a Sony
-SRS-XB13 speaker: pairs, A2DP and HFP connect, music streams with no drops.
+SRS-XB13 speaker: pairs, A2DP and HFP connect, music streams with no drops. The AP6255 terminal paired a
+phone on 21 Nov 2026.
 
 ## Download the firmware
 
-`BCM4345C5.hcd` comes from Armbian's firmware collection:
+Both firmware files come from Armbian's firmware collection. Get both: you don't need to know which module
+your terminal has, because the Bluetooth library asks the chip its name and loads the matching file.
 
 ```sh
 curl -LO https://raw.githubusercontent.com/armbian/firmware/bf5f7a802b8e1998e6bf95daed5ea965441af83d/BCM4345C5.hcd
+curl -LO https://raw.githubusercontent.com/armbian/firmware/db8cc456dad5ad511b04f8a5130acda392cad20b/BCM4345C0.hcd
 ```
 
-MD5 `fc394331d03baa5847e2b5de94ffbc9b`, 45,667 bytes. Copy it **and** `device/bt/bt_vendor.conf` loose
-into the folder you give `tools/install_data.py` (the same folder as `citaq-boot.sh` and the rest;
-[INSTALL.md step 10](INSTALL.md#10-install-the-boot-hook-and-helpers) has the exact commands). It
-installs both and checks the MD5 first. If either is missing, it prints `bluetooth skipped` and
-carries on.
+| File | Module | MD5 | Size |
+|---|---|---|---|
+| `BCM4345C5.hcd` | AP6256 | `fc394331d03baa5847e2b5de94ffbc9b` | 45,667 bytes |
+| `BCM4345C0.hcd` | AP6255 | `d6313cb3835f7645240e2ad63ff152ab` | 65,570 bytes |
+
+Copy them **and** `device/bt/bt_vendor.conf` loose into the folder you give `tools/install_data.py` (the
+same folder as `citaq-boot.sh` and the rest; [INSTALL.md step 10](INSTALL.md#10-install-the-boot-hook-and-helpers)
+has the exact commands). It checks the MD5s and installs them. With no `.hcd` and no `bt_vendor.conf` it
+prints `bluetooth skipped` and carries on; with only one of the two kinds it stops.
 
 **Already installed without them?** Add the two files to that folder and run `install_data.py` again.
 It's safe to re-run. Reboot afterwards so the boot hook picks them up.
@@ -49,15 +57,17 @@ second pinctrl state (`rts_gpio`, a new `uart0-rts-gpio` group). UART0 also gets
 vendor library can run hardware flow control at 1.5 Mbaud.
 
 Before the DTB was written, the chip was tested by hand: with power and REG_ON high and RTS low, it
-answered `HCI_Reset` at 115200 and named itself `BCM4345C5`.
+answered `HCI_Reset` at 115200 and named itself `BCM4345C5` (`BCM4345C0` on an AP6255).
 
 ## 2. Firmware and config
 
 `libbt-vendor.so` reads `/vendor/etc/bluetooth/bt_vendor.conf`, which the ROM doesn't have (the folder
 only holds `rtkbt.conf`). The boot hook bind-mounts `/data/citaq/bt` over that folder, so it needs:
 
-- `bt_vendor.conf`: `UartPort = /dev/ttyS0`, firmware path and name
-- `BCM4345C5.hcd`
+- `bt_vendor.conf`: `UartPort = /dev/ttyS0` and the firmware folder. It deliberately names no firmware
+  file: the library then asks the chip its name and loads `<name>.hcd` ("AMPAK FW Auto detection ...
+  Found patchfile" in logcat), which is how one install covers both modules.
+- `BCM4345C5.hcd` and/or `BCM4345C0.hcd`
 - a copy of the ROM's `rtkbt.conf` (the mount hides the original; `install_data.py` copies it)
 
 The files are labelled `vendor_configs_file`. Delete `/data/citaq/bt` to undo it.
@@ -99,7 +109,8 @@ matters because the app is signed with the vendor's platform key.
 bt_vendor: init
 bt_userial_vendor: userial vendor open: opening /dev/ttyS0
 bt_hwcfg: Chipset BCM4345C5
-bt_hwcfg: FW patchfile: /vendor/etc/bluetooth/BCM4345C5.hcd
+bt_hwcfg: Target name = [BCM4345C5]
+bt_hwcfg: Found patchfile: /vendor/etc/bluetooth//BCM4345C5.hcd
 bt_hwcfg: bt vendor lib: set UART baud 1500000
 bt_hwcfg: vendor lib fwcfg completed
 AdapterState: BLE_ON : entered
@@ -119,9 +130,10 @@ adb shell getprop vendor.gps.channel                 # /dev/ptmx
 adb shell "dumpsys bluetooth_manager | grep -i -E 'enabled:|state:|address:'"
 ```
 
-Android 10 has no `cmd bluetooth_manager`. To switch Bluetooth on from adb, use
-`adb shell su 1000 service call bluetooth_manager 6 s16 android` (the shell user lacks
-`BLUETOOTH_ADMIN`), or the quick-settings tile.
+To switch Bluetooth on from adb: `adb shell svc bluetooth enable` (Android 10 has no
+`cmd bluetooth_manager`). Android remembers it, so it comes back on after a reboot. On the AP6255
+terminal the quick-settings tile did nothing and Settings showed no on/off switch until Bluetooth had
+been switched on this way once.
 
 ## Notes
 

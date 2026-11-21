@@ -49,7 +49,9 @@ SDIO0 ahead of the eMMC, the eMMC became `mmcblk1`, `blkdevparts=mmcblk0:…` ma
 dropped to the bootloader. The script moves the SDIO and pwrseq nodes to the end of the tree.
 
 At boot, the driver detects the chip as BCM4345 rev 9 and loads `fw_bcm43456c5_ag.bin` +
-`nvram_ap6256.txt`. Both are already in the PX5 vendor image.
+`nvram_ap6256.txt`. Both are already in the PX5 vendor image. Some terminals have an AP6255 (BCM43455)
+instead; the vendor image has its files too (`fw_bcm43455c0_ag.bin`, `nvram_ap6255.txt`), and the same
+driver picks them by chip revision.
 
 The RK818's 32 kHz output must be on and set as a clock (reg 0x20 = `xx01`). After a battery pull it
 isn't, and the driver times out ("HT Avail timeout"). `citaq-boot.sh` fixes the register and

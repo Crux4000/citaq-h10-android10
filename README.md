@@ -54,8 +54,8 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | GPU (PowerVR Rogue G6110) | ✅ | GLES 3.1, 200/288/400 MHz DVFS |
 | Display 1024×768 LVDS | ✅ | JEIDA 24-bit; rotated 180° for the assembled case |
 | Touch (Ilitek ILI2105) | ✅ | userspace driver `ilits` (I2C → uinput), 2 fingers |
-| Wi-Fi (AP6256, 2.4 + 5 GHz) | ✅ | rebuilt `bcmdhd.ko` (see [docs/WIFI.md](docs/WIFI.md)) |
-| Bluetooth (AP6256 / BCM4345C5) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
+| Wi-Fi (AP6256 or AP6255, 2.4 + 5 GHz) | ✅ | rebuilt `bcmdhd.ko` (see [docs/WIFI.md](docs/WIFI.md)) |
+| Bluetooth (BCM4345C5 / BCM4345C0) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
 | 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**, see [docs/MODEM.md](docs/MODEM.md) |
 | Sound (RT5651 or ES8316 + speaker amp) | ✅ | the boot hook detects which codec is fitted; Android volume works through `volshim`. ES8316 sound confirmed on a second terminal (21 Nov 2026); its volume slider fix is awaiting a test |
@@ -126,8 +126,8 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
 - **Google apps** (Play services, Play Store). Sideload them from a trusted mirror.
 - **`bcmdhd.ko`**. It's GPL and built from Rockchip's public kernel tree, and it's attached to the
   GitHub release along with the exact source commit and config. See [docs/WIFI.md](docs/WIFI.md).
-- **`BCM4345C5.hcd`** (Bluetooth firmware). Download it from Armbian's firmware repo; the link and
-  MD5 are in [docs/BLUETOOTH.md](docs/BLUETOOTH.md).
+- **`BCM4345C5.hcd` / `BCM4345C0.hcd`** (Bluetooth firmware for the two Wi-Fi/BT modules Citaq fits).
+  Download both from Armbian's firmware repo; the links and MD5s are in [docs/BLUETOOTH.md](docs/BLUETOOTH.md).
 
 ## Known issues
 

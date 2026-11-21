@@ -10,9 +10,12 @@ usage: install_data.py <adb> <dir>
   blshim volshim propset                               -> brightness / volume / serial helpers
   thermalstub.jar    src/thermalstub/build.sh          -> stand-in thermalservice for Google Play
   bootlogo.png       optional, 1024x768 boot logo
-  BCM4345C5.hcd      optional, Bluetooth firmware (docs/BLUETOOTH.md)   -> /data/citaq/bt/
-  bt_vendor.conf     optional, device/bt/bt_vendor.conf                -> /data/citaq/bt/
-                     (Bluetooth is installed only if both are there; the ROM's own rtkbt.conf
+  BCM4345C5.hcd      optional, Bluetooth firmware for the AP6256 (docs/BLUETOOTH.md) -> /data/citaq/bt/
+  BCM4345C0.hcd      optional, Bluetooth firmware for the AP6255                    -> /data/citaq/bt/
+  bt_vendor.conf     optional, device/bt/bt_vendor.conf                             -> /data/citaq/bt/
+                     (Bluetooth is installed when bt_vendor.conf and at least one .hcd are there -
+                     put both .hcd files in and the Bluetooth library picks the one matching the
+                     chip it finds; the ROM's own rtkbt.conf
                      is copied in next to them, because the boot hook bind-mounts the folder
                      over /vendor/etc/bluetooth)
 
@@ -29,8 +32,11 @@ import sys
 
 REQUIRED = ['citaq-boot.sh', 'ilits.bin', 'bcmdhd.ko', 'blshim', 'volshim', 'propset', 'thermalstub.jar']
 OPTIONAL = ['bootlogo.png']
-BT_FILES = ['BCM4345C5.hcd', 'bt_vendor.conf']
-BT_HCD_MD5 = 'fc394331d03baa5847e2b5de94ffbc9b'   # armbian/firmware bf5f7a8, 45,667 bytes
+BT_CONF = 'bt_vendor.conf'
+BT_HCD_MD5 = {                                       # Citaq fits either Wi-Fi/BT module
+    'BCM4345C5.hcd': 'fc394331d03baa5847e2b5de94ffbc9b',   # AP6256; armbian/firmware bf5f7a8, 45,667 bytes
+    'BCM4345C0.hcd': 'd6313cb3835f7645240e2ad63ff152ab',   # AP6255; armbian/firmware db8cc45, 65,570 bytes
+}
 BT_DIR = '/data/citaq/bt'
 TARGET = {'citaq-boot.sh': 'ilits'}          # init's akmd service runs /data/citaq/ilits
 EXEC = {'citaq-boot.sh', 'ilits.bin', 'blshim', 'volshim', 'propset'}
@@ -76,20 +82,22 @@ def push(adbexe, local, dst, mode):
 
 
 def check_bt(src):
-    """True if the Bluetooth files are there (and right), False if absent; stops on a half set."""
-    have = [f for f in BT_FILES if os.path.exists(os.path.join(src, f))]
-    if not have:
-        return False
-    if len(have) != len(BT_FILES):
-        sys.exit(f'bluetooth needs both {" and ".join(BT_FILES)} in {src}')
-    if md5(os.path.join(src, 'BCM4345C5.hcd')) != BT_HCD_MD5:
-        sys.exit(f'BCM4345C5.hcd is not the expected file (md5 should be {BT_HCD_MD5})')
-    return True
+    """The Bluetooth files to install ([] if none); stops on a half set or a wrong .hcd."""
+    hcds = [f for f in BT_HCD_MD5 if os.path.exists(os.path.join(src, f))]
+    conf = os.path.exists(os.path.join(src, BT_CONF))
+    if not hcds and not conf:
+        return []
+    if not conf or not hcds:
+        sys.exit(f'bluetooth needs {BT_CONF} and at least one of {" / ".join(BT_HCD_MD5)} in {src}')
+    for f in hcds:
+        if md5(os.path.join(src, f)) != BT_HCD_MD5[f]:
+            sys.exit(f'{f} is not the expected file (md5 should be {BT_HCD_MD5[f]})')
+    return hcds + [BT_CONF]
 
 
-def install_bt(adbexe, src):
+def install_bt(adbexe, src, files):
     sh(adbexe, f'mkdir -p {BT_DIR}')
-    for f in BT_FILES:
+    for f in files:
         push(adbexe, os.path.join(src, f), f'{BT_DIR}/{f}', '644')
     # The bind mount hides the ROM's /vendor/etc/bluetooth, so keep its rtkbt.conf. On a re-run the
     # mount is already active and the file is already in BT_DIR.
@@ -119,9 +127,9 @@ def main():
     for f in REQUIRED + [o for o in OPTIONAL if os.path.exists(os.path.join(src, o))]:
         push(adbexe, os.path.join(src, f), '/data/citaq/' + TARGET.get(f, f), '755' if f in EXEC else '644')
     if bt:
-        install_bt(adbexe, src)
+        install_bt(adbexe, src, bt)
     else:
-        print('bluetooth        skipped (no BCM4345C5.hcd / bt_vendor.conf)')
+        print('bluetooth        skipped (no .hcd / bt_vendor.conf)')
     print('done. Reboot into Android 10 to start the boot hook:\n'
           '  adb reboot recovery   (while Android 10 is only in the recovery slot)\n'
           '  adb reboot            (once it is the default boot)')

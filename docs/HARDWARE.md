@@ -27,7 +27,7 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | Display | 10" 1024×768 4:3, **LVDS single-channel 8-bit, JEIDA**, 65 MHz |
 | Touch | Ilitek **ILI2105**, I2C2 (`i2c@ff140000`) addr **0x41**, IRQ gpio0 B4 (gpio12, low = data), reset gpio0 B3 (gpio11) |
 | PMIC | Rockchip **RK818** on I2C0 @ 0x1c, plus **Silergy SYR827** (vdd_cpu) @ 0x40 |
-| Wi-Fi/BT | **AP6256** (BCM4345 rev 9, 2.4 + 5 GHz) on SDIO0. The stock DT says AP6212, which is wrong. Bluetooth core **BCM4345C5** on **UART0 → /dev/ttyS0** |
+| Wi-Fi/BT | **AP6256** (BCM4345 rev 9, 2.4 + 5 GHz) on SDIO0, or on some terminals an **AP6255** (BCM43455). The stock DT says AP6212, which is wrong for both. Bluetooth core **BCM4345C5** (AP6256) or **BCM4345C0** (AP6255) on **UART0 → /dev/ttyS0**; the Bluetooth library loads the matching firmware by chip name |
 | Audio | **Realtek RT5651** on I2C1 @ 0x1a **or Everest ES8316** @ 0x10 (Citaq fits either; same stock firmware, which lists both - the boot hook detects which and binds the matching sound card, result in `/data/citaq/codec`), i2s-8ch, MCLK = SCLK_I2S_8CH_OUT; speaker amp gpio0 C3 (gpio19), **active high**. The headphone jack and the speaker amp share the headphone output, so the boot hook mutes the amp while the jack is in. The ES8316 has no line out; its speaker amp is the same pin |
 | Printer | 80 mm thermal, ESC/POS, **UART1 → /dev/ttyS1, 115200, CTS flow control**, 552 dots wide. Buzzer off: `1F 1B 1F 50 42` (Citaq-specific; `1F 1B 1F 50 40` didn't silence it, so it's probably buzzer on, untested) |
 | LEDs | red **gpio124**, blue **gpio106** (1 = on) |
