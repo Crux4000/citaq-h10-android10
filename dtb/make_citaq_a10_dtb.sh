@@ -72,18 +72,13 @@ P -ts $R regulator-always-on ""
 P -ts $R regulator-boot-on ""
 P -tx $R phandle 0x0f
 P -ts /i2c@ff650000 status okay
-# The legacy rk3368 tsadc driver "voltage-compensates" each reading as code * tsadc-supply volts. With
-# tsadc-supply = the now-scaling vdd_cpu it read -20..-25 C, and a bogus early reading left the step_wise
-# governor holding both cpufreq cooling devices at 816 MHz. Give the tsadc a constant 1.1625 V reference
-# instead - the calibration point that read 42 C vs a 37 C probe on the package top.
-fdtput -c "$OUT" /citaq-fixed-tsadc-ref
-P -ts /citaq-fixed-tsadc-ref compatible regulator-fixed
-P -ts /citaq-fixed-tsadc-ref regulator-name tsadc_ref
-P -tu /citaq-fixed-tsadc-ref regulator-min-microvolt 1162500
-P -tu /citaq-fixed-tsadc-ref regulator-max-microvolt 1162500
-P -ts /citaq-fixed-tsadc-ref regulator-always-on ""
-P -tx /citaq-fixed-tsadc-ref phandle 0x1f2
-P -tx /tsadc@ff280000 tsadc-supply 0x1f2
+# The legacy rk3368 tsadc driver "voltage-compensates" each reading as code * tsadc-supply volts, and with
+# its clock running (xin32k, see make_citaq_dtb.sh) that is right: measured on the bench against a probe on
+# the chip, the raw code scales as 1/vdd_cpu (code x V ~153 at every speed from 408 to 1200 MHz at ~50 C).
+# So tsadc-supply must be the live vdd_cpu (phandle 0x0f, the SYR827 above). Earlier versions used a fixed
+# 1.1625 V reference here because the readings looked wrong with vdd_cpu - they were really stale values
+# from the dead clock.
+P -tx /tsadc@ff280000 tsadc-supply 0x0f
 
 # (1) The legacy rk3368 tsadc driver asks the MCU over SCPI for the reading whenever the PM QoS
 # cpu_dma_latency request exceeds latency-bound (default 50000 us) - i.e. always, unless something holds a

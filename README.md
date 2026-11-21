@@ -66,7 +66,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | 3 USB host ports | ✅ | barcode scanners, mice, flash drives, SDR dongles |
 | adb over USB (JP2) and network | ✅ | userdebug build, `adb root` works |
 | Google Play / sign-in | ✅ | with a `thermalservice` stub and a serial-number fix |
-| CPU DVFS + thermal | ✅ | 408 MHz–1 GHz by default, 1.2 GHz opt-in; runs warm with no heatsink, see [Known issues](#known-issues) |
+| CPU DVFS + thermal | ✅ | 408 MHz–1 GHz by default, 1.2 GHz opt-in; temperature reading and throttling fixed 21 Nov 2026, see [Known issues](#known-issues) |
 | Back power switch | ✅ | clean shutdown and real power-off |
 | Survives a battery pull | ✅ | the boot hook re-programs the PMIC |
 | Battery % / charge status | ❌ | no RK818 driver; charging itself works |
@@ -143,26 +143,31 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
   script in the [Home Assistant package](docs/HOME-ASSISTANT.md#receipt-printer)). If your printer has
   been taken out and something still beeps, this command can't reach it.
 
-- **It runs hot, and one freeze is under investigation.** These terminals have no heatsink on the
-  SoC, and there are only a couple of millimetres between the chip and the case.
-  - **Don't trust the built-in temperature reading yet.** The port's sensor driver corrects the
-    reading against a fixed CPU voltage, but the voltage actually scales between 1.0 and 1.225 V. So
-    the reading jumps around (42 °C and 69 °C a few minutes apart has been seen) and probably reads low
-    at full speed. A fix is being worked on and will be checked against a real probe first.
-  - **Real measurement:** a probe inside the closed case, next to the SoC but not touching it, was
-    about 20 °C above room temperature after half an hour at 1.2 GHz and still rising. The chip itself
-    is hotter than the air around it. A second terminal reported the SoC hot enough to burn a finger.
-  - **Freeze:** on 19 Nov 2026 one terminal froze after about 3 hours at 1.2 GHz: screen off, touch
-    and adb dead, nothing in the logs, back after a power-cycle. The cause isn't confirmed yet. Heat
-    at 1.2 GHz is the main suspect.
+- **It runs hot. Temperature reading fixed 21 Nov 2026, which most likely also fixes the freeze
+  (rebuild your boot image).**
+  These terminals have no heatsink on the SoC, and there are only a couple of millimetres between the
+  chip and the case.
+  - **What was wrong:** the DTB disabled the 32 kHz clock that the temperature sensor runs from, so the
+    built-in reading was stuck or garbage. Throttling never engaged, and a garbage reading could hit the
+    125 °C critical trip, which on this port halts the board with the screen off but still powered. On
+    19 Nov 2026 one terminal froze in exactly that way after about 3 hours at 1.2 GHz (touch and adb
+    dead, back after a power-cycle); that's the most likely cause, though the freeze wasn't reproduced. The sensor also needed the live CPU voltage instead of a fixed one. Both
+    are fixed in the DTB scripts; details in [docs/HARDWARE.md](docs/HARDWARE.md#thermal).
+  - **Checked on the bench** with a probe on the chip: about 4 °C high at idle, and under 10 minutes of
+    full load the reading peaked at 80 °C and throttling held it there (the probe on the package top
+    read 59 °C).
+  - **Installed before 21 Nov 2026?** Your terminal has the broken sensor. Pull, rebuild the DTB and
+    boot image ([INSTALL step 5](docs/INSTALL.md#5-build-the-dtb-and-boot-image-linuxwsl)) and flash
+    it to the boot slot ([Updating the boot image later](docs/INSTALL.md#updating-the-boot-image-later)).
+    Check it worked: `adb root`, then
+    `adb shell "grep -e xin32k -e tsadc /sys/kernel/debug/clk/clk_summary"` should show both at 32768.
 
-  **Since 20 Nov 2026 the CPU defaults to 1008 MHz** instead of 1.2 GHz. A second user reports that a
-  lower limit helped, with no noticeable difference in the Home Assistant app. 1.2 GHz is still there
-  as an opt-in ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)) and will become the default
-  again once the temperature reading is fixed. **Installed before 20 Nov?** Your boot hook still
-  defaults to 1.2 GHz. Either re-run `install_data.py`, or just set the limit:
-  `adb shell "echo 1008 > /data/citaq/cpu-max-mhz"`. If you still get freezes at 1008 MHz, please open
-  an issue.
+  **The CPU defaults to 1008 MHz** (since 20 Nov 2026). It runs cooler and makes no noticeable
+  difference in the Home Assistant app. 1.2 GHz is an opt-in
+  ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)); with the fixed DTB throttling now works at
+  that speed too. **Installed before 20 Nov?** Your boot hook still defaults to 1.2 GHz. Either
+  re-run `install_data.py`, or just set the limit: `adb shell "echo 1008 > /data/citaq/cpu-max-mhz"`.
+  If you get freezes with the fixed DTB, please open an issue.
 
 ## Warning
 

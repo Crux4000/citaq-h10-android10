@@ -89,11 +89,19 @@ off /i2c@ff140000/gt9xx@14          # Goodix touch (Citaq has Ilitek @0x41)
 off /i2c@ff170000/wm8978@1a         # car audio codec
 for n in /mtc-pre /mtc-init /mtc-car /mtc-vs /mtc-dvd /vehicle /cif_sensor \
          /cif@ff950000 /isp@ff910000 /wireless-wlan /rockchip-key /gpio-keys \
-         /wm8978-sound /xin32k /dwmmc@ff0d0000 /dwmmc@ff0c0000 \
+         /wm8978-sound /dwmmc@ff0d0000 /dwmmc@ff0c0000 \
          /serial@ff1b0000 /serial@ff1c0000 /pwm@ff680010 /i2s-8ch@ff898000 \
          /usb@ff580000 /syscon@ff770000/usb2-phy@700/otg-port; do   # JP2 adb port: hands off
   off $n
 done
+# 32 kHz clock: on the PX5 /xin32k is made by a PWM; on the Citaq the RK818's CLK32KOUT1 feeds the SoC's
+# CLK32K ball directly, so declare it as a plain fixed clock (as mainline RK3368 boards do). Don't disable
+# it: sclk_tsadc hangs off xin32k, and without it the temperature sensor runs at 0 Hz - conversions never
+# finish and the driver keeps returning a stale or garbage reading (stuck values, false 119-125 C spikes,
+# throttling that never engages).
+P -ts /xin32k compatible fixed-clock
+P -ts /xin32k status okay
+fdtput -d "$OUT" /xin32k pwms
 # GPIO-switched fixed regulators: drop the GPIOs (they are PX5 board pins).
 fdtput -d "$OUT" /vcc-host gpio
 fdtput -d "$OUT" /vcc-host enable-active-low

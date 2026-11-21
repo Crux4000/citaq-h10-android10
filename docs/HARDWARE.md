@@ -105,10 +105,11 @@ it runs at whatever the busier cluster needs, and the little cluster needs the m
 | 816 MHz | 1.025 V | 1.00 V | coolest; slower boot and app installs |
 
 **Why 1008 is the default.** The stock Android 5.1 firmware allowed 1.2 GHz on the little cluster and
-1.5 GHz on the big one, so 1.2 GHz isn't beyond what the chip shipped with. But stock throttled from
-80 °C on a temperature reading it could trust. On this port the throttle (70 °C) is fed a reading that
-isn't reliable yet and probably reads low at full speed (see [Known issues](../README.md#known-issues)),
-so a hot terminal may never throttle. Until that's fixed, the default stays at 1008 MHz.
+1.5 GHz on the big one, so 1.2 GHz isn't beyond what the chip shipped with. But stock throttled on a
+temperature reading it could trust, and until 21 Nov 2026 this port's reading was broken (see
+[Thermal](#thermal)), so a hot terminal never throttled. With a DTB built after that date throttling
+works, but with no heatsink 1008 MHz still runs cooler and is barely slower on a dashboard, so it stays
+the default.
 
 The boot hook reads the limit from `/data/citaq/cpu-max-mhz` (`816`, `1008` or `1200`; anything else,
 or no file, means 1008) and logs what it set to `/data/citaq/cpu.log`.
@@ -131,17 +132,34 @@ Delete the file to go back to the default 1008 MHz. Check with
 
 ## Thermal
 
-`tsadc@ff280000`, legacy rk3368 driver. Two quirks:
-1. It asks the MCU over SCPI for the reading unless a low-latency PM QoS request is active. On this
-   firmware the MCU always answers "25 °C". The port sets `latency-bound = 0x7fffffff` so it always reads
-   the ADC directly.
-2. It multiplies by `tsadc-supply`, which gives nonsense when that supply is the scaling vdd_cpu. The
-   port gives it a fixed 1.1625 V reference instead.
+`tsadc@ff280000`, legacy rk3368 driver. Three things it needs on this board:
+1. **Its clock.** `sclk_tsadc` comes from `xin32k`. On the PX5, `/xin32k` is a PWM-generated clock; on
+   the Citaq the RK818's CLK32KOUT1 feeds the SoC's CLK32K ball directly. Before 21 Nov 2026 the port
+   disabled `/xin32k` with the other car-only nodes, which left `sclk_tsadc` an orphan at 0 Hz
+   (`/sys/kernel/debug/clk/clk_orphan_summary`). Conversions then never finish in the driver's window and
+   it silently keeps returning the last value: readings stuck for hours, occasional garbage spikes to
+   119–125 °C, and throttling that never engages. The DTB now declares `/xin32k` as a 32768 Hz
+   `fixed-clock`, like the mainline RK3368 boards.
+2. **The live CPU voltage.** The driver multiplies the raw code by `tsadc-supply` volts, and with a working
+   clock that is correct: the raw code scales as 1/vdd_cpu (code x V about 153 at every speed from 408 to
+   1200 MHz with the chip at about 50 °C). So `tsadc-supply` is the SYR827 `vdd_cpu`. Older versions used a
+   fixed 1.1625 V reference here, based on readings that turned out to be stale values from the dead clock.
+3. **`latency-bound = 0x7fffffff`.** Otherwise it asks the MCU over SCPI for the reading unless a
+   low-latency PM QoS request is active, and on this firmware the MCU always answers "25 °C".
 
-Calibration point: 42 °C reported at 37 °C on the package top. That is the only point checked, so
-readings up near the 70 °C trip may be several degrees out either way. The raw ADC code moves about
-3 °C per step (122 = 25 °C, 128 = 42 °C, 139 = 75 °C raw) and the driver smooths it, so the reported
-temperature moves in flat steps rather than smoothly.
+Checked on the bench (case open, DS18B20 in thermal putty on the package top):
+
+| Load | Probe on the package | Reported |
+|---|---|---|
+| Idle, any CPU speed | 47–51 °C | about 52 °C (55 °C at 1200 MHz) |
+| 10 min full load, normal governor | up to 59 °C | peak 80 °C, held there by throttling |
+
+At idle it reads within the sensor's ±5 °C spec. Under load it reads 15–20 °C above the top of the
+package, which is expected (the die's hot spot is hotter than the package surface, plus some rail droop
+under load) and errs on the safe side. Trips: 70/80 °C passive (CPU and GPU cooling), 125 °C critical.
+Under full load the big cluster throttles mostly to 408–600 MHz; no critical trip was reached.
+
+The raw code moves about 2 codes per 5 °C, so the reported temperature moves in small steps.
 
 ## eMMC layout
 

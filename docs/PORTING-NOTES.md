@@ -205,11 +205,17 @@ rail (CPU, DDR, LCD) just to get a battery percentage. Two problems did come up:
 ## 13. Speed and heat
 
 - CPU DVFS came back with the real **SYR827** regulator driver (`fan53555`).
-- The tsadc needed two fixes:
-  - a fixed reference voltage instead of the scaling vdd_cpu
+- The tsadc needed three fixes:
+  - **its clock**: `/xin32k` (a PWM clock on the PX5) had been disabled as car-only hardware, which
+    left `sclk_tsadc` at 0 Hz, so every reading was stale or garbage. On the Citaq the RK818 supplies
+    32 kHz directly, so it's now a 32768 Hz `fixed-clock`. Found 21 Nov 2026 with a probe on the chip;
+    this was most likely behind the 19 Nov freeze (a garbage reading can hit the 125 °C critical trip,
+    and a kernel power-off here halts with the board still powered).
+  - `tsadc-supply` = the live vdd_cpu. An earlier fixed 1.1625 V reference was a wrong turn caused by
+    the dead clock.
   - `latency-bound = 0x7fffffff`, because the legacy driver otherwise asks the MCU, which always
     answers "25 °C"
-- With real temperatures, 1512 MHz at 1.35 V hung the board after 30–70 s of full load (sensor reached
+- 1512 MHz at 1.35 V hung the board after 30–70 s of full load (sensor reached
   75 °C with no heatsink). The big cluster is capped at 1200 MHz.
 - GPU runs 200/288/400 MHz.
 - Boot time: 28.4 s → **22.5 s**. CPU-bound benchmark: −36 %.
