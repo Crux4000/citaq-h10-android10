@@ -1,6 +1,13 @@
 #!/system/bin/sh
 # Citaq boot hook. Started at boot as root by the repurposed akmd init service
 # (/vendor/etc/init/init.rockchip.akmd.rc runs "/data/citaq/ilits run").
+# 0) Android music volume: the MTC AudioService takes MAX_STREAM_VOLUME[MUSIC] from the car MCU
+#    ("cfg_maxvolume=", answered "0" by our CarService patch) unless ro.config.media_vol_steps is set.
+#    Must happen before system_server's AudioService starts (this service starts earlier, class main),
+#    so it's the very first thing: anything slow before it (the codec detection below can wait a few
+#    seconds on an ES8316 terminal) leaves Android with a 0-step volume range - the slider stuck at 0.
+setprop ro.config.media_vol_steps 15
+setprop ro.config.media_vol_default 10
 # 000) Boot logo: the MTC bootanimation shows /system/media/defaultlogo_h.png on a 1024-wide panel (the car-stereo
 #      "Insane Audio" logo; the logo choice normally comes from the car MCU). Bind our own 1024x768 PNG over it -
 #      first thing, so it is in place before bootanim (~3 s) opens it. Delete /data/citaq/bootlogo.png to undo.
@@ -40,8 +47,7 @@ fi
 #      are back; the card registers straight after. (A power-off from the back switch also resets the PMIC.)
 #      On a terminal with the ES8316 instead this bind just fails (nothing at 0x1a) - see 00b3b.
 if [ ! -e /sys/bus/i2c/devices/1-001a/driver ]; then
-  echo 1-001a > /sys/bus/i2c/drivers/rt5651/bind 2>/dev/null
-  for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /sys/bus/i2c/devices/1-001a/driver ] && break; sleep 0.3; done
+  echo 1-001a > /sys/bus/i2c/drivers/rt5651/bind 2>/dev/null     # (binding is synchronous)
   [ -e /sys/bus/i2c/devices/1-001a/driver ] && rt_late=1
 fi
 # 00b3b) Which codec is fitted. Citaq builds this board with either a Realtek RT5651 (I2C1 @0x1a, the reference
@@ -108,11 +114,6 @@ u=$(i2cget -f -y 0 0x1c 0xa1)
   [ "$(cat gpio29/direction)" = out ] && [ "$(cat gpio29/value)" = 1 ] || {
     echo low > gpio29/direction; sleep 0.1; echo 1 > gpio29/value; }
 )
-# 0) Android music volume: the MTC AudioService takes MAX_STREAM_VOLUME[MUSIC] from the car MCU
-#    ("cfg_maxvolume=", answered "0" by our CarService patch) unless ro.config.media_vol_steps is set.
-#    Must happen before system_server's AudioService starts (this service starts earlier, class main).
-setprop ro.config.media_vol_steps 15
-setprop ro.config.media_vol_default 10
 # 0b) "thermalservice": the MTC SystemServer never starts ThermalManagerService, so current Google Play services
 #     crash (NPE in PowerManager.addThermalStatusListener). Register a do-nothing stand-in (thermalstub/).
 if [ -f /data/citaq/thermalstub.jar ]; then
