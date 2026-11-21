@@ -53,9 +53,16 @@ adb shell getprop ro.product.device
 adb shell getprop ro.build.type
 adb shell getprop ro.build.display.id
 adb shell cat /proc/partitions
+adb shell "ls -d /sys/bus/i2c/drivers/*/*-00*"
+adb shell "cat /sys/block/mmcblk*/device/name /sys/block/mmcblk*/device/manfid"
 ```
 
 - `ro.board.platform` must be `rk3368`.
+- The `i2c` line lists the chips that answered at boot. On stock firmware an H10-3 shows its touch
+  controller and sound chip there: `2-0041` is the Ilitek touch controller, `1-001a` an RT5651 and
+  `1-0010` an ES8316. Anything else on bus 2, please mention it in your report. (On Android 10 the
+  touch controller won't be listed, because its driver runs in user space.)
+- The `mmcblk` line gives the eMMC chip's name and maker ID.
 - `ro.build.type` must be `userdebug` for the `adb root` method in [INSTALL.md](INSTALL.md). On a
   `user` build you'll need another way in (maskrom dump, UART, an exploit), and that's worth a
   report on its own.
