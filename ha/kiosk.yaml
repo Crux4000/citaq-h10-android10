@@ -25,6 +25,12 @@ input_select:
   kiosk_image:
     name: Kiosk image
     options: ["(press refresh)"]
+  kiosk_led_pattern:
+    name: Kiosk LED pattern
+    options: ["off", solid, blink, alternate]
+  kiosk_led_colour:
+    name: Kiosk LED colour
+    options: [red, blue, both]
 
 input_boolean:
   kiosk_print_bold:
@@ -41,6 +47,22 @@ input_number:
     step: 1
     initial: 8
     mode: slider
+  kiosk_led_speed:
+    name: Kiosk LED speed
+    min: 50
+    max: 2000
+    step: 50
+    initial: 500
+    unit_of_measurement: ms
+    mode: slider
+  kiosk_led_duration:
+    name: Kiosk LED duration (0 = until stopped)
+    min: 0
+    max: 600
+    step: 5
+    initial: 0
+    unit_of_measurement: s
+    mode: box
 
 shell_command:
   kiosk_build: >-
@@ -219,22 +241,70 @@ script:
         data:
           command: "busybox printf '\\033p\\000\\200\\200' > /dev/ttyS1"
 
-  # LEDs: red = gpio124, blue = gpio106 (1 = on)
+  # LEDs: red = gpio124, blue = gpio106 (1 = on). Plain on/off pins: no brightness control.
+  # Patterns run on the terminal itself (a background loop started over adb), so flashing is
+  # smooth at any speed and HA isn't tied up. Every call stops the previous pattern first.
+  # Flashing patterns need the Android 10 port (setsid + fractional sleep); off/solid also work on stock 5.1.
+  #   pattern:  off | solid | blink | alternate (red <-> blue)
+  #   colour:   red | blue | both          (solid and blink)
+  #   speed:    ms each light stays on/off (blink/alternate), min 50, default 500
+  #   duration: seconds before it switches itself off, 0 = until the next call (blink/alternate)
+  # Old calls with state: "on"/"off" still work (= solid / off).
   kiosk_led:
     alias: Kiosk LED
+    mode: queued
     fields:
+      pattern:
+        example: blink
       colour:
         example: red
-      state:
-        example: "on"
+      speed:
+        example: 500
+      duration:
+        example: 0
     sequence:
       - action: androidtv.adb_command
         target:
           entity_id: media_player.kiosk
         data:
           command: >-
-            echo {{ 1 if state | default('on') in ['on', true, 1, '1'] else 0 }}
-            > /sys/class/gpio/gpio{{ 124 if colour | default('red') == 'red' else 106 }}/value
+            {%- set st = state | default('') | string | lower -%}
+            {%- set pat = pattern | default('off' if st in ['off', 'false', '0'] else 'solid') | string | lower -%}
+            {%- set col = colour | default('red') | string | lower -%}
+            {%- set ms = [speed | default(500) | int(500), 50] | max -%}
+            {%- set sec = '%.3f' | format(ms / 1000) -%}
+            {%- set dur = [duration | default(0) | int(0), 0] | max -%}
+            {%- set n = ((dur * 1000) / (2 * ms)) | round(0, 'ceil') | int if dur > 0 else 0 -%}
+            {%- set r = 1 if col in ['red', 'both'] else 0 -%}
+            {%- set b = 1 if col in ['blue', 'both'] else 0 -%}
+            {%- set R = '/sys/class/gpio/gpio124/value' -%}
+            {%- set B = '/sys/class/gpio/gpio106/value' -%}
+            {%- set P = '/data/local/tmp/kiosk_led.pid' -%}
+            [ -f {{ P }} ] && grep -q kiosk_led /proc/$(cat {{ P }})/cmdline 2>/dev/null && kill $(cat {{ P }}); rm -f {{ P }};
+            {%- if pat in ['blink', 'alternate'] %}
+            {%- set a1, b1, a2, b2 = (1, 0, 0, 1) if pat == 'alternate' else (r, b, 0, 0) %}
+            setsid sh -c "echo \$\$ > {{ P }}; i=0;
+            while [ {{ n }} -eq 0 ] || [ \$i -lt {{ n }} ]; do
+            echo {{ a1 }} > {{ R }}; echo {{ b1 }} > {{ B }}; sleep {{ sec }};
+            echo {{ a2 }} > {{ R }}; echo {{ b2 }} > {{ B }}; sleep {{ sec }};
+            i=\$((i+1)); done; echo 0 > {{ R }}; echo 0 > {{ B }}; rm -f {{ P }}"
+            > /dev/null 2>&1 < /dev/null &
+            {%- elif pat == 'solid' %}
+            echo {{ r }} > {{ R }}; echo {{ b }} > {{ B }}
+            {%- else %}
+            echo 0 > {{ R }}; echo 0 > {{ B }}
+            {%- endif %}
+
+  # Dashboard tester: set the four kiosk LED helpers, then run this.
+  kiosk_led_from_dashboard:
+    alias: Kiosk LED (dashboard settings)
+    sequence:
+      - action: script.kiosk_led
+        data:
+          pattern: "{{ states('input_select.kiosk_led_pattern') }}"
+          colour: "{{ states('input_select.kiosk_led_colour') }}"
+          speed: "{{ states('input_number.kiosk_led_speed') | int(500) }}"
+          duration: "{{ states('input_number.kiosk_led_duration') | int(0) }}"
 
   kiosk_relaunch_app:
     alias: Kiosk relaunch HA app

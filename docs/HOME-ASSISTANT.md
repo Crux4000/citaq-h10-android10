@@ -23,7 +23,7 @@ connect to `<terminal-ip>:5555` and gives you a `media_player` entity. Use its
 | screen off / on | `input keyevent 223` / `input keyevent 224` |
 | brightness (0–255) | `settings put system screen_brightness 40` |
 | media volume (0–15) | `media volume --stream 3 --set 8` |
-| red LED on / off | `echo 1 > /sys/class/gpio/gpio124/value` / `echo 0 …` |
+| red LED on / off | `echo 1 > /sys/class/gpio/gpio124/value` / `echo 0 …` (or `script.kiosk_led`, below) |
 | blue LED | `/sys/class/gpio/gpio106/value` |
 | relaunch the app | `am start -n io.homeassistant.companion.android/.launch.LaunchActivity` |
 | reboot | `reboot` |
@@ -69,6 +69,87 @@ How it works: HA builds the ESC/POS bytes, uploads them with `androidtv.upload`,
 `cat job.bin > /dev/ttyS1`. The boot hook sets the port to 115200 raw with CTS flow control and
 makes it writable. Feed, cut, cash-drawer-kick and printer-buzzer-off (`kiosk_buzzer_off`) scripts are
 included too.
+
+## LEDs
+
+Two status LEDs, red and blue, on plain on/off pins: they're either on or off, there's no
+brightness control. `script.kiosk_led` in `ha/kiosk.yaml` drives them (same setup as the printer
+above). Flashing patterns run as a small loop **on the terminal**, so they stay smooth at any speed
+and the automation that started them carries on straight away. Each call stops whatever pattern
+was running before and sets both LEDs, so the newest alert always wins.
+
+| Field | Values | Default |
+|---|---|---|
+| `pattern` | `off`, `solid`, `blink`, `alternate` (red ↔ blue) | `solid` |
+| `colour` | `red`, `blue`, `both` (for `solid` and `blink`) | `red` |
+| `speed` | ms each light stays on/off, 50 or more (`blink`, `alternate`) | `500` |
+| `duration` | seconds before it switches itself off, `0` = until the next call | `0` |
+
+```yaml
+action: script.kiosk_led
+data:
+  pattern: blink
+  colour: blue
+  speed: 800
+```
+
+Turn them off with `pattern: "off"`. Flashing patterns need the Android 10 port; `off` and `solid`
+also work on stock 5.1. Calls from before Nov 2026 (`state: "on"`/`"off"` with a `colour`) still work.
+
+To try patterns without writing YAML, the package adds four helpers (**Kiosk LED pattern**, **colour**,
+**speed** and **duration**) and `script.kiosk_led_from_dashboard`, which runs the LEDs with whatever
+they're set to. Put them on a dashboard and press the script's Run button.
+
+Example: washer finished. This needs a power-monitoring plug or sensor on the washer.
+
+```yaml
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.washing_machine_power
+    below: 3
+    for:
+      minutes: 2
+actions:
+  - action: script.kiosk_led
+    data:
+      pattern: blink
+      colour: blue
+      speed: 800
+  - action: notify.mobile_app_<your_terminal>
+    data:
+      message: TTS
+      data:
+        tts_text: "The washing machine has finished"
+        media_stream: music_stream
+```
+
+The trigger only fires when the power drops from above 3 W to below it, so it doesn't repeat while
+the washer sits idle. Stop the LED with `pattern: "off"` from a dashboard button, or from a second
+automation (the washer door opening, say).
+
+HA doesn't know whether an LED is on. If you want a dashboard to show it, add an `input_boolean` and
+set it in the same automation.
+
+## Text-to-speech
+
+The ADB `media_player` sends commands; it can't play media. Two ways to make the terminal talk:
+
+1. **The Companion app's TTS notification.** Nothing to install, and it works with the screen off.
+   It uses Android's voice (Google Speech Services is in the image), not your HA voice:
+   ```yaml
+   action: notify.mobile_app_<your_terminal>
+   data:
+     message: TTS
+     data:
+       tts_text: "The washing machine has finished"
+       media_stream: music_stream
+   ```
+   Find the name under Settings → Devices & services → Mobile App. On Android 10 the app registers
+   as a new device whose model shows as **PX5**. If you used the app on stock 5.1, the old entry
+   (Android version 22) is dead: HA says the message was sent but it never arrives. Delete it.
+2. **Browser Mod (HACS)** registers the dashboard in the Companion app as a `media_player`, so
+   `tts.speak` with your HA voice, chimes and media URLs work. It only plays while the app is open on
+   screen, which on a kiosk is nearly always.
 
 ## Barcode scanners
 

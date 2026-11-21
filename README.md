@@ -115,7 +115,7 @@ patches/      byte patches for super: CarService null fix, odex hide, touch serv
 device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf, modem/at-probe.sh
 src/          static arm64 helpers (C) + thermalstub (Java); build.sh builds them
 firstlight/   optional kernel bring-up test (busybox initramfs) for adapting to other boards
-ha/           Home Assistant package: printer, LEDs, app relaunch over adb
+ha/           Home Assistant package: printer, LED patterns, app relaunch over adb
 docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Bluetooth, 4G modem, Home Assistant
 ```
 
