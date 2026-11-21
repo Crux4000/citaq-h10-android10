@@ -58,7 +58,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Bluetooth (AP6256 / BCM4345C5) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
 | 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**, see [docs/MODEM.md](docs/MODEM.md) |
-| Sound (RT5651 or ES8316 + speaker amp) | ✅ RT5651 / ⚠️ ES8316 | the boot hook detects which codec is fitted; Android volume works through `volshim`. RT5651 tested; ES8316 support new, **awaiting a test** |
+| Sound (RT5651 or ES8316 + speaker amp) | ✅ | the boot hook detects which codec is fitted; Android volume works through `volshim`. ES8316 sound confirmed on a second terminal (21 Nov 2026); its volume slider fix is awaiting a test |
 | Headphone jack | ✅ | built-in speakers mute while something is plugged in |
 | Brightness slider | ✅ | through `blshim` |
 | Receipt printer (`/dev/ttyS1`) | ✅ | ESC/POS, same paths as stock, so existing scripts keep working |
@@ -143,7 +143,7 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
   script in the [Home Assistant package](docs/HOME-ASSISTANT.md#receipt-printer)). If your printer has
   been taken out and something still beeps, this command can't reach it.
 
-- **No sound card? Your terminal may have the other codec (support added 21 Nov 2026, awaiting a test).**
+- **No sound card? Your terminal may have the other codec (support added 21 Nov 2026, confirmed working).**
   Citaq fits either a Realtek RT5651 or an Everest ES8316 sound chip, with identical stock firmware.
   Earlier builds only set up the RT5651, so an ES8316 terminal had no sound at all. Check yours with
   `adb root`, then `adb shell i2cdetect -y 1` on a build from before 21 Nov: `UU` or `1a` at 0x1a is the
