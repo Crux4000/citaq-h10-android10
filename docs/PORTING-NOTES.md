@@ -148,13 +148,22 @@ Android to use it took four fixes:
 
 ## 9. Sound
 
-- The stock DT lists an **ES8316** codec. It isn't fitted (the stock boot log shows its probe failing),
-  and the real codec is a **Realtek RT5651**.
+- The stock DT lists two codecs, a **Realtek RT5651** (I2C1 0x1a) and an **Everest ES8316** (0x10), and Citaq
+  fits either one with the same firmware. The reference terminal has the RT5651 (its stock boot log shows the
+  ES8316 probe failing); the second terminal (issue #1) has the ES8316, and its stock DTB is byte-identical.
+- Both can't simply be listed as two sound cards: this kernel's es8316 driver registers a codec whether or not
+  the chip is there (an early test DTB gave the RT5651 terminal an ES8316 card with every control failing), and
+  the two cards share i2s-8ch, which goes to whichever binds first. So the RT5651 card is the normal one, and the
+  ES8316 card (`/es8316-sound`) has a compatible no driver matches. The boot hook binds it by hand
+  (`driver_override` = `asoc-simple-card`) only when the RT5651 card didn't come up and something answers at
+  0x10. The rt5651 driver checks its ID register, so on an ES8316 terminal it fails cleanly
+  ("Device with ID register 0xffffffc0 is not rt5651") and its card just stays waiting.
 - Silence even with the whole DAPM path on: this kernel's rt5651 driver never enables MCLK. Putting a
   `clocks` property on the simple-card codec node makes simple-card enable it.
 - The speaker amp enable is **active high**. The stock DT's flag is wrong.
 - Rockchip's audio HAL picks its route table by sound-card id, so the card has to be named
-  `realtek,rt5651-codec` (→ `realtekrt5651co`).
+  `realtek,rt5651-codec` (→ `realtekrt5651co`). The HAL also has a table for `rockchipes8316c`, so the ES8316
+  card is named `rockchip,es8316-codec`.
 - **Volume:** this MTC build applies no software volume, because the car MCU did that. So `volshim`
   watches Android's media volume and writes the codec's digital DAC volume. The HAL's route feeds the
   outputs straight from the DAC, so the analog volume controls do nothing. The MTC volume slider and

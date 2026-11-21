@@ -135,9 +135,12 @@ I=/syscon@ff770000/io-domains
 for s in dvp-supply audio-supply gpio30-supply gpio1830-supply sdcard-supply; do fdtput -d "$OUT" $I $s; done
 P -tx $I wifi-supply 0x57
 P -ts $I status okay
-# --- Sound: the codec is a Realtek RT5651 on I2C1 (ff660000) @0x1a. The stock DT also lists an
-#     es8316@10, but it isn't fitted (stock last_kmsg: es8316 probe fails, "#0: RK_RT5651")
-#     on i2s0 = i2s-8ch@ff898000. MCLK = SCLK_I2S_8CH_OUT (cru 113) on GPIO2_C4.
+# --- Sound: Citaq fits one of two codecs on I2C1 (ff660000), both on i2s-8ch@ff898000 with
+#     MCLK = SCLK_I2S_8CH_OUT (cru 113) on GPIO2_C4 and the same speaker amp. The stock DT lists both
+#     and its kernel used whichever answered:
+#       Realtek RT5651 @0x1a  - the reference terminal (stock last_kmsg: es8316 probe fails, "#0: RK_RT5651")
+#       Everest ES8316 @0x10  - a second terminal with the identical stock firmware (issue #1, Nov 2026)
+#     RT5651 first: its node and card below are the reference setup.
 P -ts /i2c@ff660000 status okay
 C=/i2c@ff660000/rt5651@1a
 fdtput -c "$OUT" $C
@@ -162,6 +165,38 @@ P -tx $S/simple-audio-card,codec sound-dai 0x1f1
 # playing -> silence). A "clocks" property on the card's codec subnode makes simple-card itself
 # clk_prepare_enable() it at stream startup and clk_set_rate(mclk-fs * fs) in hw_params.
 P -tx $S/simple-audio-card,codec clocks 0x0a 0x71   # SCLK_I2S_8CH_OUT
+P -ts $S status okay
+# ES8316 alternative. Two things stop us simply listing both codecs and both cards:
+#  - this kernel's es8316 driver registers its codec without checking the chip is there (an ES8316 card
+#    came up on the RT5651 terminal in an early test, every control read failing), while the rt5651 driver
+#    checks its ID register and fails cleanly;
+#  - both cards need i2s-8ch, and whichever binds first keeps it - the other fails for good.
+# So the ES8316 card gets a compatible that no driver matches: it never binds on its own, and the RT5651
+# card is exactly as before. The boot hook (citaq-boot.sh, 00b3) checks which chip answers and, only when
+# the RT5651 card didn't come up and something answers at 0x10, binds this card by hand (driver_override =
+# asoc-simple-card). Name "rockchip,es8316-codec" -> card id "rockchipes8316c", which the Rockchip audio
+# HAL has a route table for. No spk-con-gpios: the boot hook drives the speaker amp (see Headphone jack).
+E=/i2c@ff660000/es8316@10
+fdtput -c "$OUT" $E
+P -ts $E compatible everest,es8316
+P -tx $E reg 0x10
+P -tx $E "#sound-dai-cells" 0
+P -tx $E clocks 0x0a 0x71                      # SCLK_I2S_8CH_OUT
+P -ts $E clock-names mclk
+P -tx $E phandle 0x1f2
+S=/es8316-sound
+fdtput -c "$OUT" $S
+P -ts $S compatible citaq,es8316-sound            # matches no driver on purpose (bound by the boot hook)
+P -ts $S simple-audio-card,format i2s
+P -ts $S simple-audio-card,name rockchip,es8316-codec
+P -tu $S simple-audio-card,mclk-fs 256
+P -ts $S simple-audio-card,widgets Speaker Speaker Headphone Headphones
+P -ts $S simple-audio-card,routing Speaker HPOL Speaker HPOR Headphones HPOL Headphones HPOR
+fdtput -c "$OUT" $S/simple-audio-card,cpu
+P -tx $S/simple-audio-card,cpu sound-dai 0xaa      # i2s-8ch@ff898000
+fdtput -c "$OUT" $S/simple-audio-card,codec
+P -tx $S/simple-audio-card,codec sound-dai 0x1f2
+P -tx $S/simple-audio-card,codec clocks 0x0a 0x71   # simple-card enables MCLK itself, as for the RT5651
 P -ts $S status okay
 
 # --- Receipt printer: UART1 = serial@ff190000 -> /dev/ttyS1 (alias serial1), as stock: pins

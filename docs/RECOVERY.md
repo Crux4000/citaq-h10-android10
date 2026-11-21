@@ -72,7 +72,8 @@ and the RT5651 audio codec then get probed with no power and fail.
 
 `citaq-boot.sh` detects this, puts the stock values back, and re-probes Wi-Fi and the audio codec on
 every boot, so it fixes itself. If it doesn't, check `/data/citaq/rk818.log` (it should end with
-`rt5651 codec bound (sound card: ok)` after a cold boot) and that `/data/citaq/ilits` exists. See
+`rt5651 codec bound (sound card: ok)` after a cold boot), `/data/citaq/sound.log` (which codec was found and
+whether the sound card came up) and that `/data/citaq/ilits` exists. See
 [HARDWARE.md](HARDWARE.md#rk818-pmic) for the registers.
 
 ## Worst case: nothing boots at all

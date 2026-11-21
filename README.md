@@ -58,7 +58,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Bluetooth (AP6256 / BCM4345C5) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
 | 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**, see [docs/MODEM.md](docs/MODEM.md) |
-| Sound (RT5651 + speaker amp) | ✅ | Android volume works through `volshim` |
+| Sound (RT5651 or ES8316 + speaker amp) | ✅ RT5651 / ⚠️ ES8316 | the boot hook detects which codec is fitted; Android volume works through `volshim`. RT5651 tested; ES8316 support new, **awaiting a test** |
 | Headphone jack | ✅ | built-in speakers mute while something is plugged in |
 | Brightness slider | ✅ | through `blshim` |
 | Receipt printer (`/dev/ttyS1`) | ✅ | ESC/POS, same paths as stock, so existing scripts keep working |
@@ -142,6 +142,19 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
   after a power cycle, so if the beeping comes back, send it again (or use the `kiosk_buzzer_off`
   script in the [Home Assistant package](docs/HOME-ASSISTANT.md#receipt-printer)). If your printer has
   been taken out and something still beeps, this command can't reach it.
+
+- **No sound card? Your terminal may have the other codec (support added 21 Nov 2026, awaiting a test).**
+  Citaq fits either a Realtek RT5651 or an Everest ES8316 sound chip, with identical stock firmware.
+  Earlier builds only set up the RT5651, so an ES8316 terminal had no sound at all. Check yours with
+  `adb root`, then `adb shell i2cdetect -y 1` on a build from before 21 Nov: `UU` or `1a` at 0x1a is the
+  RT5651, `10` at 0x10 is the ES8316. (From the new build on, the es8316 driver claims 0x10 on every
+  terminal, so it shows `UU` there either way; use `sound.log` below.) The boot hook now detects which one
+  is fitted and sets up the matching sound card. To update:
+  pull, rebuild the DTB and boot image ([INSTALL step 5](docs/INSTALL.md#5-build-the-dtb-and-boot-image-linuxwsl)),
+  flash it to the boot slot ([Updating the boot image later](docs/INSTALL.md#updating-the-boot-image-later)),
+  rebuild the helpers (`sh src/build.sh`) and re-run step 10 (`install_data.py`) for the new boot hook and
+  `volshim`. After a reboot, `adb shell cat /data/citaq/sound.log` says which codec was found and whether
+  the card came up. On an RT5651 terminal nothing changes.
 
 - **It runs hot. Temperature reading fixed 21 Nov 2026, which most likely also fixes the freeze
   (rebuild your boot image).**

@@ -38,11 +38,36 @@ fi
 # 00b3) Same story for the RT5651 audio codec (I2C1 @0x1a): after a PMIC reset it was probed unpowered, the probe
 #      failed, and the sound card stays deferred waiting for it -> no sound card at all. Bind it now that the rails
 #      are back; the card registers straight after. (A power-off from the back switch also resets the PMIC.)
+#      On a terminal with the ES8316 instead this bind just fails (nothing at 0x1a) - see 00b3b.
 if [ ! -e /sys/bus/i2c/devices/1-001a/driver ]; then
   echo 1-001a > /sys/bus/i2c/drivers/rt5651/bind 2>/dev/null
-  for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /dev/snd/controlC0 ] && break; sleep 0.3; done
-  echo "$(date) rt5651 codec bound (sound card: $([ -e /dev/snd/controlC0 ] && echo ok || echo MISSING))" >> /data/citaq/rk818.log
+  for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /sys/bus/i2c/devices/1-001a/driver ] && break; sleep 0.3; done
+  [ -e /sys/bus/i2c/devices/1-001a/driver ] && rt_late=1
 fi
+# 00b3b) Which codec is fitted. Citaq builds this board with either a Realtek RT5651 (I2C1 @0x1a, the reference
+#      terminal) or an Everest ES8316 (@0x10); the stock firmware is identical and lists both. The RT5651 driver
+#      checks its chip ID, so if it is bound the RT5651 card comes up by itself. Otherwise, if something answers at
+#      0x10, bind the DTB's ES8316 card (/es8316-sound), which is kept from binding on its own because the es8316
+#      driver doesn't check for its chip and the two cards can't share the I2S port. Needs the Nov 2026 DTB with
+#      the es8316-sound node; with an older DTB an ES8316 terminal just has no sound card, as before.
+#      The result is in /data/citaq/codec (rt5651, es8316 or none) and /data/citaq/sound.log.
+if [ -e /sys/bus/i2c/devices/1-001a/driver ]; then
+  codec=rt5651
+elif i2cget -f -y 1 0x10 0x00 > /dev/null 2>&1; then
+  codec=es8316
+  d=/sys/bus/platform/devices/es8316-sound
+  if [ -e $d ] && [ ! -e $d/driver ]; then
+    echo asoc-simple-card > $d/driver_override
+    echo es8316-sound > /sys/bus/platform/drivers/asoc-simple-card/bind 2>/dev/null
+  fi
+else
+  codec=none
+fi
+for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /dev/snd/controlC0 ] && break; sleep 0.3; done
+card=$(cat /proc/asound/card0/id 2>/dev/null)
+echo $codec > /data/citaq/codec
+echo "$(date) codec $codec, sound card ${card:-MISSING}$([ $codec = none ] && echo ' (nothing answered at I2C1 0x1a or 0x10)')" > /data/citaq/sound.log
+[ "$rt_late" = 1 ] && echo "$(date) rt5651 codec bound (sound card: ${card:+ok}${card:-MISSING})" >> /data/citaq/rk818.log
 # 00b4) tee-supplicant talks to an OP-TEE the Citaq's trust firmware doesn't have: it exits, init restarts it every
 #      5 s forever, and each attempt logs an error - flooding the kernel log. Nothing on this build needs it.
 stop tee-supplicant
@@ -130,20 +155,29 @@ echo ${big}000 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
 echo "$(date) cpu max $cpumax MHz (cpu0-3 $lit, cpu4-7 $(($(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq) / 1000)))" > /data/citaq/cpu.log
 # 1) Wi-Fi: use our rebuilt bcmdhd.ko instead of the vendor one (built for 4.19.101).
 mount -o bind /data/citaq/bcmdhd.ko /vendor/lib/modules/bcmdhd.ko
-# 2) Sound: open the RT5651 playback path (DAC -> line out + headphone out). The speaker amp
-#    (gpio0 C3) is switched by the codec driver itself on unmute.
-for c in 'DAC MIXL INF1 Switch' 'DAC MIXR INF1 Switch' \
-         'Stereo DAC MIXL DAC L1 Switch' 'Stereo DAC MIXR DAC R1 Switch' \
-         'HPO MIX DAC1 Switch' 'HPO L Playback Switch' 'HPO R Playback Switch' \
-         'LOUT MIX DAC L1 Switch' 'LOUT MIX DAC R1 Switch' \
-         'LOUT L Playback Switch' 'LOUT R Playback Switch'; do
-  tinymix "$c" 1 >/dev/null 2>&1
-done
+# 2) Sound: open the codec's playback path. RT5651: DAC -> line out + headphone out. ES8316: DAC -> headphone
+#    mixer -> headphone out (it has no line out). On both the speaker amp hangs off the headphone output and the
+#    amp pin is driven by 3c below.
+case $codec in
+  rt5651)
+    for c in 'DAC MIXL INF1 Switch' 'DAC MIXR INF1 Switch' \
+             'Stereo DAC MIXL DAC L1 Switch' 'Stereo DAC MIXR DAC R1 Switch' \
+             'HPO MIX DAC1 Switch' 'HPO L Playback Switch' 'HPO R Playback Switch' \
+             'LOUT MIX DAC L1 Switch' 'LOUT MIX DAC R1 Switch' \
+             'LOUT L Playback Switch' 'LOUT R Playback Switch'; do
+      tinymix "$c" 1 >/dev/null 2>&1
+    done ;;
+  es8316)
+    for c in 'Left Headphone Mixer Left DAC Switch' 'Right Headphone Mixer Right DAC Switch'; do
+      tinymix "$c" 1 >/dev/null 2>&1
+    done ;;
+esac
 # 2b) Backlight: blshim mirrors Android's brightness (MTC pwm-backlight on dummy pwm3, v19 DTB) onto the
 #     real backlight PWM (pwm0). Without the v19 DTB pwm0 is still held by pwm-backlight and blshim just exits.
 [ -x /data/citaq/blshim ] && /data/citaq/blshim 3 > /data/citaq/blshim.log 2>&1 &
-# 2c) Volume: volshim maps Android's media volume (Settings volume_music_speaker, 0-15) onto the RT5651's
-#     hardware output volume - this build applies no software volume (the car MCU normally did).
+# 2c) Volume: volshim maps Android's media volume (Settings volume_music_speaker, 0-15) onto the codec's
+#     hardware DAC volume (RT5651 or ES8316, it checks which) - this build applies no software volume
+#     (the car MCU normally did).
 [ -x /data/citaq/volshim ] && /data/citaq/volshim volume_music_speaker 15 > /data/citaq/volshim.log 2>&1 &
 # 3) POS hardware for Home Assistant (same paths the stock 5.1 kiosk setup used):
 #    printer /dev/ttyS1 (UART1, 115200, CTS), LEDs red = gpio124, blue = gpio106 (off at boot),

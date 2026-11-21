@@ -5,7 +5,7 @@
 #   rkio      64-bit dd/zero/read for the stock 5.1 side (super_to_citaq.py, super_files.py)
 #   ilits.bin touch daemon (Ilitek ILI2105 over I2C -> uinput)
 #   blshim    Android brightness -> real backlight PWM
-#   volshim   Android media volume -> RT5651 codec volume
+#   volshim   Android media volume -> codec volume (RT5651 or ES8316)
 #   propset   rewrite an ro.* property in place (ro.serialno fix)
 set -e
 cd "$(dirname "$0")"
