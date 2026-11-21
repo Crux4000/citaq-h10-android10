@@ -151,8 +151,9 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
     built-in reading was stuck or garbage. Throttling never engaged, and a garbage reading could hit the
     125 °C critical trip, which on this port halts the board with the screen off but still powered. On
     19 Nov 2026 one terminal froze in exactly that way after about 3 hours at 1.2 GHz (touch and adb
-    dead, back after a power-cycle); that's the most likely cause, though the freeze wasn't reproduced. The sensor also needed the live CPU voltage instead of a fixed one. Both
-    are fixed in the DTB scripts; details in [docs/HARDWARE.md](docs/HARDWARE.md#thermal).
+    dead, back after a power-cycle); that's the most likely cause, though the freeze wasn't
+    reproduced. The sensor also needed the live CPU voltage instead of a fixed one. Both are fixed in
+    the DTB scripts; details in [docs/HARDWARE.md](docs/HARDWARE.md#thermal).
   - **Checked on the bench** with a probe on the chip: about 4 °C high at idle, and under 10 minutes of
     full load the reading peaked at 80 °C and throttling held it there (the probe on the package top
     read 59 °C).
@@ -161,13 +162,18 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
     it to the boot slot ([Updating the boot image later](docs/INSTALL.md#updating-the-boot-image-later)).
     Check it worked: `adb root`, then
     `adb shell "grep -e xin32k -e tsadc /sys/kernel/debug/clk/clk_summary"` should show both at 32768.
+    Update the boot hook as well, since only the current one has the 1.5 GHz option:
+    `adb root`, `adb push device/citaq-boot.sh /data/citaq/ilits`, `adb shell chmod 755 /data/citaq/ilits`
+    (or re-run `install_data.py`).
 
   **The CPU defaults to 1008 MHz** (since 20 Nov 2026). It runs cooler and makes no noticeable
   difference in the Home Assistant app. 1.2 GHz and 1.5 GHz (big cluster only, for heatsink or fan mods)
   are opt-ins ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)); both need the fixed DTB, because
-  they rely on throttling. **Installed before 20 Nov?** Your boot hook still defaults to 1.2 GHz. Either
-  re-run `install_data.py`, or just set the limit: `adb shell "echo 1008 > /data/citaq/cpu-max-mhz"`.
-  If you get freezes with the fixed DTB, please open an issue.
+  they rely on throttling. Set it with `adb root`, then
+  `adb shell "echo 1200 > /data/citaq/cpu-max-mhz"` (or `816`, `1008`, `1512`) and reboot;
+  `adb shell cat /data/citaq/cpu.log` shows what was applied. Boot hooks from before 20 Nov ignore that
+  file and run at 1.2 GHz, so update the hook as above. If you get freezes with the fixed DTB, please
+  open an issue.
 
 ## Warning
 

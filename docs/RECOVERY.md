@@ -44,10 +44,14 @@ them.
   `/data/citaq/ilits`. Power-cycling won't help, because the hook runs again on every boot. One known
   way to cause this is stopping the PX5 GPS service (see [BLUETOOTH.md](BLUETOOTH.md#3-the-gps-service-holds-the-port)):
   `adb shell getprop init.svc.vendor.gnss_service` should say `running`.
-- **Frozen with the screen off, touch and adb dead, and it comes back after a power-cycle:** possibly
-  heat at 1.2 GHz (see [Known issues](../README.md#known-issues)). Check the CPU limit is 1008 MHz,
-  the default (`adb shell cat /data/citaq/cpu.log`), or drop it to 816 MHz
-  ([HARDWARE.md](HARDWARE.md#cpu-speed-limit)).
+- **Frozen with the screen off, touch and adb dead, and it comes back after a power-cycle:** that's
+  what the broken temperature sensor did before 21 Nov 2026: a garbage reading hit the 125 °C critical
+  trip, which halts the board but leaves it powered (see [Known issues](../README.md#known-issues)).
+  Check the sensor's clock runs: `adb root`, then
+  `adb shell "grep -e xin32k -e tsadc /sys/kernel/debug/clk/clk_summary"` should show 32768 for both.
+  If not, rebuild and flash the boot image. If it does and it still freezes, check the CPU limit
+  (`adb shell cat /data/citaq/cpu.log`), drop it to 1008 or 816 MHz
+  ([HARDWARE.md](HARDWARE.md#cpu-speed-limit)), and please open an issue.
 - **Frozen but adb still answers** (for example a wedged USB hub on stock 5.1):
   `adb shell "echo 1 > /proc/sys/kernel/sysrq; echo b > /proc/sysrq-trigger"` forces a clean reset
   without opening anything.

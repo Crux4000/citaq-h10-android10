@@ -27,6 +27,7 @@ connect to `<terminal-ip>:5555` and gives you a `media_player` entity. Use its
 | blue LED | `/sys/class/gpio/gpio106/value` |
 | relaunch the app | `am start -n io.homeassistant.companion.android/.launch.LaunchActivity` |
 | reboot | `reboot` |
+| CPU temperature (millidegrees, e.g. `55000` = 55 °C; needs the 21 Nov 2026 DTB to be accurate) | `cat /sys/class/thermal/thermal_zone0/temp` |
 
 (`monkey` doesn't work on this build: it aborts with "SYS_KEYS has no physical keys". Don't use it
 anyway: before aborting it resets the screen rotation to 0° and turns auto-rotate on, which turns an

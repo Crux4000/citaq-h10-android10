@@ -57,7 +57,7 @@ P -ts /gpio-keys status okay
 #     (driver: normal = VSEL0, sleep = VSEL1). ID1 0x88 -> die id 8 = SYR82X (712.5 mV + 12.5 mV steps).
 #     The fan53555 driver replaces the fixed vdd_cpu regulator under the same phandle (0x0f), so cpufreq and
 #     the rk3368 tsadc both use it. Thermal trips 70/80 C passive, 125 C critical; cpu + gpu cooling maps.
-#     PX5 OPP tables restored: cpu@0-3 -> opp_table0 (<= 1200 MHz), cpu@100-103 -> opp_table1 (capped below).
+#     PX5 OPP tables restored: cpu@0-3 -> opp_table0 (<= 1200 MHz), cpu@100-103 -> opp_table1 (<= 1512 MHz).
 fdtput -r "$OUT" /citaq-fixed-vdd_cpu
 R=/i2c@ff650000/syr827@40
 fdtput -c "$OUT" $R
