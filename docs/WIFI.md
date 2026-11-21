@@ -53,6 +53,13 @@ At boot, the driver detects the chip as BCM4345 rev 9 and loads `fw_bcm43456c5_a
 instead; the vendor image has its files too (`fw_bcm43455c0_ag.bin`, `nvram_ap6255.txt`), and the same
 driver picks them by chip revision.
 
+**AP6255 firmware crash.** On the first AP6255 terminal, `fw_bcm43455c0_ag.bin` (Broadcom, from the
+PX5 image) crashed about 13 minutes after Wi-Fi came up (`TRAP` / `FIRMWARE HALTED` in `dmesg`), and
+Wi-Fi stayed down until it was toggled. The image also carries Cypress's build for the same chip,
+`fw_cyw43455.bin` (`version 7.45.203 (r724662 CY)`). Bind-mounted over the Broadcom file, it connects
+fine and is being soak-tested; the workaround is in the README's Known issues. AP6256 terminals
+load `fw_bcm43456c5_ag.bin`, so swapping the 43455 file doesn't affect them.
+
 The RK818's 32 kHz output must be on and set as a clock (reg 0x20 = `xx01`). After a battery pull it
 isn't, and the driver times out ("HT Avail timeout"). `citaq-boot.sh` fixes the register and
 re-probes SDIO.

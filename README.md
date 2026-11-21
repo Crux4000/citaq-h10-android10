@@ -54,7 +54,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | GPU (PowerVR Rogue G6110) | ✅ | GLES 3.1, 200/288/400 MHz DVFS |
 | Display 1024×768 LVDS | ✅ | JEIDA 24-bit; rotated 180° for the assembled case |
 | Touch (Ilitek ILI2105) | ✅ | userspace driver `ilits` (I2C → uinput), 2 fingers |
-| Wi-Fi (AP6256 or AP6255, 2.4 + 5 GHz) | ✅ | rebuilt `bcmdhd.ko` (see [docs/WIFI.md](docs/WIFI.md)) |
+| Wi-Fi (AP6256 or AP6255, 2.4 + 5 GHz) | ✅ / ⚠️ | rebuilt `bcmdhd.ko` (see [docs/WIFI.md](docs/WIFI.md)); AP6255 drops after ~13 min, workaround in [Known issues](#known-issues) |
 | Bluetooth (BCM4345C5 / BCM4345C0) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
 | 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**, see [docs/MODEM.md](docs/MODEM.md) |
@@ -156,6 +156,20 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
   `volshim`. After a reboot, `adb shell cat /data/citaq/sound.log` says which codec was found and whether
   the card came up. On an RT5651 terminal nothing changes.
 
+- **Wi-Fi drops after about 13 minutes and doesn't come back by itself (AP6255 terminals only).**
+  The AP6255's default firmware (`fw_bcm43455c0_ag.bin`) crashes: `dmesg` shows a `TRAP` /
+  `FIRMWARE HALTED`. Terminals with the AP6256 load a different file and aren't affected. To see
+  which module you have: `adb shell "dmesg | grep -m1 'chip:0x4345'"` shows `rev:0x9` on an AP6256.
+  Cypress's own firmware for the same chip, also in the image, works so far and is being soak-tested.
+  To try it (undone on reboot):
+  ```
+  adb root
+  adb shell mount -o bind /vendor/etc/firmware/fw_cyw43455.bin /vendor/etc/firmware/fw_bcm43455c0_ag.bin
+  adb shell svc wifi disable
+  adb shell svc wifi enable
+  ```
+  If it holds up, the boot hook will apply it automatically on AP6255 terminals.
+
 - **It runs hot. Temperature reading fixed 21 Nov 2026, which most likely also fixes the freeze
   (rebuild your boot image).**
   These terminals have no heatsink on the SoC, and there are only a couple of millimetres between the
@@ -200,6 +214,12 @@ own risk**, and you should keep the full eMMC backup somewhere safe.
 - The PX5 head-unit community and the **Hal9k** firmware library, for keeping these images available
 - Rockchip's open `develop-4.19` kernel tree (Wi-Fi driver rebuild) and their vendor device trees
 - The mainline `ili210x` driver (touch protocol) and the mainline `rk808` / Pinephone Pro RK818 work (32 kHz clock fix)
+- **[@mildlycooldad](https://github.com/mildlycooldad)**, the first person to install this on their own
+  terminal. Their reports and testing turned up the eMMC-numbering and bigger-eMMC bugs, the newer-`dtc`
+  script bug and the Linux tool quirks (all now fixed), and brought support for the ES8316 sound chip
+  and the AP6255 Wi-Fi/Bluetooth module. They also pinned down the AP6255 Wi-Fi drop and tested the firmware that
+  looks like the fix, and their heat report led to the safer default CPU limit. Every terminal after the
+  first installs more easily because of it. Thank you!
 
 ## Licence
 
