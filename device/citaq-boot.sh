@@ -112,16 +112,22 @@ done
 #     firmware returns a constant 122 (= "25 C"). Hold a 50000 us request (hex c350) for good: the driver then reads
 #     the ADC directly and the temperature is real. 50 ms allows every cpuidle state, so it costs no power.
 ( exec 3> /dev/cpu_dma_latency; echo c350 >&3; while :; do sleep 86400; done ) &
-# 0f) CPU speed limit for both clusters. /data/citaq/cpu-max-mhz holds 816, 1008 or 1200; no file (or anything
-#     else) = 1008. The terminal has no heatsink, and the temperature reading the 70 C throttle relies on isn't
-#     trustworthy yet (fixed tsadc reference vs a scaling vdd_cpu), so the default stays at 1008 until it is.
-#     Both clusters share one rail, which the little cluster pulls to 1.225 V at 1.2 GHz vs 1.125 V at 1008 MHz
-#     (~40% more CPU heat). 1200 is opt-in. 1512 MHz @ 1.35 V crashed the board after ~40 s of full load
-#     (2026-11-17); those OPPs are not in the DTB.
+# 0f) CPU speed limit. /data/citaq/cpu-max-mhz holds 816, 1008, 1200 or 1512; no file (or anything else) = 1008.
+#     816/1008/1200 cap both clusters. 1512 = cpu4-7 up to 1512 MHz @ 1.35 V, cpu0-3 at their 1200 MHz max.
+#     Both clusters share one rail (1.125 V at 1008, 1.225 V at 1200, 1.35 V at 1512). The terminal has no
+#     heatsink, so 1008 is the default; 1200 and 1512 are opt-in. They rely on the 70/80 C throttle, which only
+#     works with a DTB from 21 Nov 2026 or later (fixed temperature sensor). On stock cooling 1512 only helps
+#     short bursts (~20% faster); under sustained load it throttles back to <= 1200 MHz within 1-2 s. It's meant
+#     for terminals with a heatsink or fan. On an older DTB without the 1512 OPP the kernel clamps it to 1200.
 cpumax=$(cat /data/citaq/cpu-max-mhz 2>/dev/null | tr -dc 0-9)
-case "$cpumax" in 816|1008|1200) ;; *) cpumax=1008 ;; esac
-for p in /sys/devices/system/cpu/cpufreq/policy*; do echo ${cpumax}000 > $p/scaling_max_freq; done
-echo "$(date) cpu max $cpumax MHz" > /data/citaq/cpu.log
+case "$cpumax" in
+  816|1008|1200) lit=$cpumax; big=$cpumax ;;
+  1512) lit=1200; big=1512 ;;
+  *) cpumax=1008; lit=1008; big=1008 ;;
+esac
+echo ${lit}000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+echo ${big}000 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+echo "$(date) cpu max $cpumax MHz (cpu0-3 $lit, cpu4-7 $(($(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq) / 1000)))" > /data/citaq/cpu.log
 # 1) Wi-Fi: use our rebuilt bcmdhd.ko instead of the vendor one (built for 4.19.101).
 mount -o bind /data/citaq/bcmdhd.ko /vendor/lib/modules/bcmdhd.ko
 # 2) Sound: open the RT5651 playback path (DAC -> line out + headphone out). The speaker amp

@@ -66,7 +66,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | 3 USB host ports | ✅ | barcode scanners, mice, flash drives, SDR dongles |
 | adb over USB (JP2) and network | ✅ | userdebug build, `adb root` works |
 | Google Play / sign-in | ✅ | with a `thermalservice` stub and a serial-number fix |
-| CPU DVFS + thermal | ✅ | 408 MHz–1 GHz by default, 1.2 GHz opt-in; temperature reading and throttling fixed 21 Nov 2026, see [Known issues](#known-issues) |
+| CPU DVFS + thermal | ✅ | 408 MHz–1 GHz by default, 1.2 / 1.5 GHz opt-in; temperature reading and throttling fixed 21 Nov 2026, see [Known issues](#known-issues) |
 | Back power switch | ✅ | clean shutdown and real power-off |
 | Survives a battery pull | ✅ | the boot hook re-programs the PMIC |
 | Battery % / charge status | ❌ | no RK818 driver; charging itself works |
@@ -163,9 +163,9 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
     `adb shell "grep -e xin32k -e tsadc /sys/kernel/debug/clk/clk_summary"` should show both at 32768.
 
   **The CPU defaults to 1008 MHz** (since 20 Nov 2026). It runs cooler and makes no noticeable
-  difference in the Home Assistant app. 1.2 GHz is an opt-in
-  ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)); with the fixed DTB throttling now works at
-  that speed too. **Installed before 20 Nov?** Your boot hook still defaults to 1.2 GHz. Either
+  difference in the Home Assistant app. 1.2 GHz and 1.5 GHz (big cluster only, for heatsink or fan mods)
+  are opt-ins ([docs/HARDWARE.md](docs/HARDWARE.md#cpu-speed-limit)); both need the fixed DTB, because
+  they rely on throttling. **Installed before 20 Nov?** Your boot hook still defaults to 1.2 GHz. Either
   re-run `install_data.py`, or just set the limit: `adb shell "echo 1008 > /data/citaq/cpu-max-mhz"`.
   If you get freezes with the fixed DTB, please open an issue.
 

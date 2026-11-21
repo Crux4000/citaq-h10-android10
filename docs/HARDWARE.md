@@ -89,32 +89,39 @@ reading is missing.
 ## SYR827 (vdd_cpu)
 
 I2C0 @ 0x40, ID 0x88. VSEL0 = 0xa4 (enabled, 1162.5 mV) at boot, VSEL1 = sleep. Driven in the port by
-the `fan53555` driver (`fcs,suspend-voltage-selector = 1`). CPU OPPs are capped at 1.2 GHz: 1512 MHz at
-1.35 V hung the board after 30–70 s of full load without a heatsink.
+the `fan53555` driver (`fcs,suspend-voltage-selector = 1`). Up to 1.35 V for the big cluster at 1512 MHz;
+the boot hook sets the speed limit (below).
 
 ## CPU speed limit
 
-Both clusters top out at 1.2 GHz: the DTB drops the big cluster's 1296/1416/1512 MHz OPPs, because
-1512 MHz at 1.35 V hung the board after 30–70 s of full load. Both clusters share the SYR827 rail, so
-it runs at whatever the busier cluster needs, and the little cluster needs the most:
+The little cluster (cpu0–3) tops out at 1.2 GHz; the big cluster (cpu4–7) has 1296/1416/1512 MHz as well.
+Both share the SYR827 rail, so it runs at whatever the busier cluster needs:
 
-| Limit | Little cluster (cpu0–3) | Big cluster (cpu4–7) | Notes |
-|---|---|---|---|
-| 1200 MHz | 1.225 V | 1.15 V | fastest, opt-in; about 40% more CPU heat than 1008 |
-| 1008 MHz (default) | 1.125 V | 1.05 V | barely noticeable on a dashboard |
-| 816 MHz | 1.025 V | 1.00 V | coolest; slower boot and app installs |
+| Limit | cpu0–3 | cpu4–7 | Rail at full speed | Notes |
+|---|---|---|---|---|
+| 1512 MHz | 1200 MHz | 1512 MHz | 1.35 V | for heatsink/fan mods; see below |
+| 1200 MHz | 1200 MHz | 1200 MHz | 1.225 V | fastest sustained on stock cooling; about 40% more CPU heat than 1008 |
+| 1008 MHz (default) | 1008 MHz | 1008 MHz | 1.125 V | barely noticeable on a dashboard |
+| 816 MHz | 816 MHz | 816 MHz | 1.025 V | coolest; slower boot and app installs |
 
 **Why 1008 is the default.** The stock Android 5.1 firmware allowed 1.2 GHz on the little cluster and
-1.5 GHz on the big one, so 1.2 GHz isn't beyond what the chip shipped with. But stock throttled on a
+1.5 GHz on the big one, so none of these is beyond what the chip shipped with. But stock throttled on a
 temperature reading it could trust, and until 21 Nov 2026 this port's reading was broken (see
 [Thermal](#thermal)), so a hot terminal never throttled. With a DTB built after that date throttling
 works, but with no heatsink 1008 MHz still runs cooler and is barely slower on a dashboard, so it stays
-the default.
+the default. **1200 and 1512 need a DTB from 21 Nov 2026 or later**, because they rely on throttling.
 
-The boot hook reads the limit from `/data/citaq/cpu-max-mhz` (`816`, `1008` or `1200`; anything else,
-or no file, means 1008) and logs what it set to `/data/citaq/cpu.log`.
+**1512 on stock cooling** (bench test, case open, 33 °C room): no hangs, but under sustained full load
+the 70 °C throttle pulls cpu4–7 back to 1200 MHz or less within 1–2 s. Short single-thread jobs ran 20%
+faster than at 1200; ten minutes of all-core load got about 10% more work done, at the same temperature.
+With a heatsink or fan it should hold the higher speeds for longer. (Earlier versions dropped these
+speeds because 1512 MHz hung the board after 30–70 s of full load on 17 Nov 2026, while the temperature
+sensor was broken and nothing throttled.)
 
-Set it for every boot (here 1200 to opt in to full speed):
+The boot hook reads the limit from `/data/citaq/cpu-max-mhz` (`816`, `1008`, `1200` or `1512`; anything
+else, or no file, means 1008) and logs what it set to `/data/citaq/cpu.log`.
+
+Set it for every boot (here 1200):
 
 ```sh
 adb root
@@ -126,6 +133,9 @@ Apply it now as well, without rebooting:
 ```sh
 adb shell 'for p in /sys/devices/system/cpu/cpufreq/policy*; do echo 1200000 > $p/scaling_max_freq; done'
 ```
+
+For 1512, cpu0–3 stay at 1200:
+`adb shell "echo 1200000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq; echo 1512000 > /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq"`
 
 Delete the file to go back to the default 1008 MHz. Check with
 `adb shell cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq`.

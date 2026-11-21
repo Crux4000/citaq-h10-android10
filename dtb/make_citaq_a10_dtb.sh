@@ -83,10 +83,12 @@ P -tx /tsadc@ff280000 tsadc-supply 0x0f
 # (1) The legacy rk3368 tsadc driver asks the MCU over SCPI for the reading whenever the PM QoS
 # cpu_dma_latency request exceeds latency-bound (default 50000 us) - i.e. always, unless something holds a
 # low-latency request - and the Citaq MCU firmware answers a constant 122 (= "25 C"). Make the bound huge so
-# it always reads the ADC itself. (2) 1512 MHz @ 1.35 V hung the board after 30-70 s of full load three times
-# (sensor 75 C and climbing, no heatsink): drop the big cluster's 1296/1416/1512 MHz OPPs, max 1200 MHz.
+# it always reads the ADC itself. (2) The big cluster (cpu4-7) keeps the PX5's 1296/1416/1512 MHz OPPs
+# (1.225/1.30/1.35 V). The boot hook caps the speed (/data/citaq/cpu-max-mhz, default 1008 MHz); 1512 is an
+# opt-in for terminals with better cooling. (Earlier DTBs dropped these OPPs after 1512 MHz hung the board
+# under sustained load on 17 Nov 2026 - with the tsadc clock dead, so throttling never worked. With the fixed
+# sensor, a bench test throttled back to <= 1200 MHz within 1-2 s under sustained load and never hung.)
 P -tx /tsadc@ff280000 latency-bound 0x7fffffff
-for f in 1296000000 1416000000 1512000000; do fdtput -r "$OUT" /opp_table1/opp-$f; done
 for c in cpu@0 cpu@1 cpu@2 cpu@3; do P -tx /cpus/$c operating-points-v2 0x0c; done
 for c in cpu@100 cpu@101 cpu@102 cpu@103; do P -tx /cpus/$c operating-points-v2 0x11; done
 # GPU 400 MHz (its OPP is 1.10 V; vdd_logic measured 1.1375 V). 576 MHz needs 1.2 V - stays out.

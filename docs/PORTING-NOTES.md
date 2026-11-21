@@ -215,8 +215,11 @@ rail (CPU, DDR, LCD) just to get a battery percentage. Two problems did come up:
     the dead clock.
   - `latency-bound = 0x7fffffff`, because the legacy driver otherwise asks the MCU, which always
     answers "25 °C"
-- 1512 MHz at 1.35 V hung the board after 30–70 s of full load (sensor reached
-  75 °C with no heatsink). The big cluster is capped at 1200 MHz.
+- 1512 MHz at 1.35 V hung the board after 30–70 s of full load (17 Nov 2026), so the big cluster was capped
+  at 1200 MHz. That was with the temperature sensor's clock dead and no working throttle. After the fix the
+  1296/1416/1512 MHz OPPs went back into the DTB (21 Nov): a bench run never hung, and throttling pulls the
+  speed back within 1–2 s under sustained load. The boot hook's limit (default 1008, opt-in 1200 or 1512)
+  decides what's used.
 - GPU runs 200/288/400 MHz.
 - Boot time: 28.4 s → **22.5 s**. CPU-bound benchmark: −36 %.
 - `cmd package compile -m speed -a` and removing 51 car/bloat apps did the rest.
