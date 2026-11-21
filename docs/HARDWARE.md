@@ -169,6 +169,17 @@ package, which is expected (the die's hot spot is hotter than the package surfac
 under load) and errs on the safe side. Trips: 70/80 °C passive (CPU and GPU cooling), 125 °C critical.
 Under full load the big cluster throttles mostly to 408–600 MHz; no critical trip was reached.
 
+In service, back in the case (21–22 Nov 2026, 24–25 °C room, CPU limit 1512, Home Assistant app on screen):
+
+| Period | Probe inside the case | Reported |
+|---|---|---|
+| Overnight, hourly means | 38–42 °C | 60–66 °C (hourly peaks 75–79 °C) |
+| Play Store update, load ~6 | up to 42 °C | peak 80 °C, throttled, back down within the hour |
+
+No freeze in the first 14 hours, no stuck values or spikes, and nothing from the tsadc or thermal code in
+`dmesg` after boot. The probe sits in the case air rather than on the chip here, so the gap to the reported
+temperature is larger than on the bench.
+
 The raw code moves about 2 codes per 5 °C, so the reported temperature moves in small steps.
 
 ## eMMC layout

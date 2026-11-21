@@ -184,6 +184,10 @@ docs/         install, recovery, hardware map, porting notes, Wi-Fi driver, Blue
   - **Checked on the bench** with a probe on the chip: about 4 °C high at idle, and under 10 minutes of
     full load the reading peaked at 80 °C and throttling held it there (the probe on the package top
     read 59 °C).
+  - **First night back in service** (21–22 Nov 2026, case closed, 24–25 °C room, CPU limit 1512): 14 hours
+    with no freeze. The reading moved smoothly between about 55 and 66 °C on the dashboard, with no stuck
+    values or spikes, and peaked at 80 °C (throttled) only during a Play Store update. That's one night,
+    so it isn't proof yet; this note will be updated after a week.
   - **Installed before 21 Nov 2026?** Your terminal has the broken sensor. Pull, rebuild the DTB and
     boot image ([INSTALL step 5](docs/INSTALL.md#5-build-the-dtb-and-boot-image-linuxwsl)) and flash
     it to the boot slot ([Updating the boot image later](docs/INSTALL.md#updating-the-boot-image-later)).
