@@ -8,10 +8,43 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 
 ## Reported
 
-| Device | Board marking | eMMC | Stock build (`ro.build.display.id`) | `ro.build.type` | Result | Report |
+| # | Device | Stock build | Sound | Wi-Fi / BT | Result | Report |
 |---|---|---|---|---|---|---|
-| Citaq H10-3 (ex-Menulog / Just Eat) | CTE-RK3368-V1.0 | 16 GB | 20220926.JE.H10.5.1.0005 | userdebug | ✅ full port, see [What works](../README.md#what-works). RT5651 sound codec; the boot hook's codec detection picks it and sound plays (22 Nov 2026) | @Crux4000 |
-| Citaq H10-3, shipped with Android 6.0, flashed back to 5.1.1 with Citaq's `RK3368-8780-LVDS9-Citaq-20211101.1015` image (also has `RK3368_6.0_H10_20211130`); printer removed. `ro.product.device` = `Citaq_32` | CTE-RK3368-V1.0 20180801 | 16 GB (15,028 MiB; p16 18333696 sectors, 118 MiB bigger) | POS_32-userdebug-20211101.1015 | userdebug | ✅ clean install with the current scripts and no hand edits (20 Nov 2026), Android 10 as the default boot. **Sound codec is an ES8316, not the RT5651** (same stock DTB byte for byte), which needed ES8316 support (added 21 Nov 2026; sound confirmed working). Wi-Fi/BT module is an **AP6255** (Bluetooth BCM4345C0): Bluetooth works with `BCM4345C0.hcd` (phone paired 21 Nov 2026), now installed alongside the AP6256 file. Wi-Fi dropped after about 13 minutes on the AP6255's default firmware; Cypress's firmware for the same chip ran overnight without a crash and the boot hook now uses it (22 Nov 2026). The first attempt needed hand-fixes for the bigger p16 and a DTB-script bug with newer `dtc`; both are fixed. A second board of the same model failed the write step with unstable RAM/eMMC (a hardware fault, not the port) | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
+| 1 | Citaq H10-3 (ex-Menulog / Just Eat) | `20220926.JE.H10.5.1.0005` | RT5651 | AP6256 | ✅ Everything in [What works](../README.md#what-works) | @Crux4000 |
+| 2 | Citaq H10-3 (shipped with Android 6.0) | `POS_32-userdebug-20211101.1015` | ES8316 | AP6255 | ✅ Works; ⚠️ Wi-Fi after a soft reboot | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
+
+Both boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and carry
+byte-for-byte the same stock device tree. Citaq fits different sound and Wi-Fi/Bluetooth chips to boards
+that look identical, and the port detects or supports both of each.
+
+### 1: Citaq H10-3, ex-Menulog / Just Eat
+
+- **Board:** CTE-RK3368-V1.0, eMMC 16 GB.
+- **Stock build:** `20220926.JE.H10.5.1.0005`, `userdebug`.
+- **Result:** the reference terminal the port was developed on. Everything in
+  [What works](../README.md#what-works).
+- **Sound:** RT5651. The boot hook's codec detection picks it and sound plays (22 Nov 2026).
+
+### 2: Citaq H10-3, shipped with Android 6.0
+
+- **Board:** CTE-RK3368-V1.0 20180801, eMMC 16 GB (15,028 MiB; p16 is 18,333,696 sectors, 118 MiB bigger
+  than unit 1).
+- **Stock build:** flashed back from Android 6.0 to 5.1.1 with Citaq's
+  `RK3368-8780-LVDS9-Citaq-20211101.1015` image (Citaq's `RK3368_6.0_H10_20211130` image was also
+  available). `POS_32-userdebug-20211101.1015`, `ro.product.device` = `Citaq_32`. Printer removed.
+- **Install:** clean install with the current scripts and no hand edits (20 Nov 2026). Android 10 is
+  the default boot. The first attempt needed hand fixes for the bigger p16 and for a DTB-script bug with
+  newer `dtc`. Both are now fixed in the scripts.
+- **Sound:** ES8316, not the RT5651. ES8316 support was added on 21 Nov 2026, and sound is confirmed
+  working.
+- **Bluetooth:** AP6255 module (BCM4345C0). Works with `BCM4345C0.hcd`, which is now installed alongside
+  the AP6256 file (phone paired 21 Nov 2026).
+- **Wi-Fi:** the AP6255's default firmware crashed about every 13 minutes. Cypress's firmware for the same
+  chip ran overnight without a crash, and the boot hook now uses it (22 Nov 2026).
+  **Open:** after a soft reboot, Wi-Fi doesn't come back. A full power-off and on fixes it. The cause is
+  found and a fix is being tested in [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4).
+- **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a
+  hardware fault, not the port.
 
 ## Not tried yet
 
