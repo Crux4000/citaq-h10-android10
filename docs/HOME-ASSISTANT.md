@@ -20,8 +20,8 @@ connect to `<terminal-ip>:5555` and gives you a `media_player` entity. Use its
 
 | What | Command |
 |---|---|
-| screen off / on | `input keyevent 223` / `input keyevent 224` |
-| brightness (0–255) | `settings put system screen_brightness 40` |
+| screen (backlight) off / on | `script.kiosk_screen` with `on: false` / `on: true` (see [Screen off](#screen-off)). `input keyevent 223/224` don't work: the car firmware ignores sleep requests |
+| brightness (10–255) | `settings put system screen_brightness 40` (Android won't go below 10; needs `blshim` running) |
 | media volume (0–15) | `media volume --stream 3 --set 8` |
 | red LED on / off | `echo 1 > /sys/class/gpio/gpio124/value` / `echo 0 …` (or `script.kiosk_led`, below) |
 | blue LED | `/sys/class/gpio/gpio106/value` |
@@ -69,6 +69,25 @@ How it works: HA builds the ESC/POS bytes, uploads them with `androidtv.upload`,
 `cat job.bin > /dev/ttyS1`. The boot hook sets the port to 115200 raw with CTS flow control and
 makes it writable. Feed, cut, cash-drawer-kick and printer-buzzer-off (`kiosk_buzzer_off`) scripts are
 included too.
+
+## Screen off
+
+The car firmware's power manager ignores sleep requests, so `input keyevent 223` (sleep) and `224`
+(wake) do nothing. `script.kiosk_screen` in `ha/kiosk.yaml` switches the **backlight** instead:
+`on: false` sets it to 0 (fully dark), `on: true` puts Android's brightness back.
+
+```yaml
+action: script.kiosk_screen
+data:
+  "on": false
+```
+
+Android keeps running underneath, so the dashboard stays live and a touch on the dark screen still
+taps whatever is under your finger. A motion sensor or a schedule is a better way to turn it back on.
+Moving the brightness slider (or `settings put system screen_brightness …`) also turns it back on.
+
+If neither this nor the brightness slider changes anything, check that `blshim` is running:
+`adb root`, then `adb shell "ps -A | grep blshim; cat /data/citaq/blshim.log"`.
 
 ## LEDs
 

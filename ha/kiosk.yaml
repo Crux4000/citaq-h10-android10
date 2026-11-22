@@ -283,7 +283,7 @@ script:
             [ -f {{ P }} ] && grep -q kiosk_led /proc/$(cat {{ P }})/cmdline 2>/dev/null && kill $(cat {{ P }}); rm -f {{ P }};
             {%- if pat in ['blink', 'alternate'] %}
             {%- set a1, b1, a2, b2 = (1, 0, 0, 1) if pat == 'alternate' else (r, b, 0, 0) %}
-            setsid sh -c "echo \$\$ > {{ P }}; i=0;
+            setsid sh -c "trap '' HUP; echo \$\$ > {{ P }}; i=0;
             while [ {{ n }} -eq 0 ] || [ \$i -lt {{ n }} ]; do
             echo {{ a1 }} > {{ R }}; echo {{ b1 }} > {{ B }}; sleep {{ sec }};
             echo {{ a2 }} > {{ R }}; echo {{ b2 }} > {{ B }}; sleep {{ sec }};
@@ -305,6 +305,29 @@ script:
           colour: "{{ states('input_select.kiosk_led_colour') }}"
           speed: "{{ states('input_number.kiosk_led_speed') | int(500) }}"
           duration: "{{ states('input_number.kiosk_led_duration') | int(0) }}"
+
+  # Screen (backlight) off / on. The car firmware's power manager ignores sleep requests, so
+  # `input keyevent 223/224` do nothing on the Android 10 port. Instead this sets the backlight
+  # brightness to 0, which blshim turns into a fully dark backlight, and "on" puts Android's
+  # brightness setting back. Android keeps running underneath, so a touch on the dark screen
+  # still taps the dashboard. Moving the brightness slider also turns the backlight back on.
+  kiosk_screen:
+    alias: Kiosk screen
+    fields:
+      "on":
+        example: false
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: >-
+            {%- set bl = '/sys/class/backlight/backlight/brightness' -%}
+            {%- if on | default(true) | bool %}
+            su 0 sh -c "echo $(settings get system screen_brightness) > {{ bl }}"
+            {%- else %}
+            su 0 sh -c "echo 0 > {{ bl }}"
+            {%- endif %}
 
   kiosk_relaunch_app:
     alias: Kiosk relaunch HA app

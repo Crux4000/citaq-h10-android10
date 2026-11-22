@@ -61,6 +61,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Sound (RT5651 or ES8316 + speaker amp) | ✅ | the boot hook detects which codec is fitted; Android volume works through `volshim`. Detection confirmed on both: RT5651 on the reference terminal (22 Nov 2026), ES8316 on a second terminal (21 Nov 2026); the ES8316 volume slider fix is awaiting a test |
 | Headphone jack | ✅ | built-in speakers mute while something is plugged in |
 | Brightness slider | ✅ | through `blshim` |
+| Screen off (sleep) | ⚠️ | the car firmware ignores sleep requests; `script.kiosk_screen` switches the backlight off instead ([HA guide](docs/HOME-ASSISTANT.md#screen-off)) |
 | Receipt printer (`/dev/ttyS1`) | ✅ | ESC/POS, same paths as stock, so existing scripts keep working |
 | Red / blue LEDs | ✅ | gpio124 / gpio106 |
 | 3 USB host ports | ✅ | barcode scanners, mice, flash drives, SDR dongles |
