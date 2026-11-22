@@ -161,6 +161,13 @@ top=$(($(cat /sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq) / 1000))
 echo "$(date) cpu max $cpumax MHz (cpu0-3 $lit, cpu4-7 $big)" > /data/citaq/cpu.log
 # 1) Wi-Fi: use our rebuilt bcmdhd.ko instead of the vendor one (built for 4.19.101).
 mount -o bind /data/citaq/bcmdhd.ko /vendor/lib/modules/bcmdhd.ko
+# 1b) AP6255 terminals: the PX5 image's Broadcom firmware for the BCM43455 (fw_bcm43455c0_ag.bin) traps about every
+#     13 min ("FIRMWARE HALTED", same pc each time) and Wi-Fi stays down. Cypress's build for the same chip, also in
+#     the image (fw_cyw43455.bin, 7.45.203 CY), ran overnight without a trap (issue #4, 22 Nov 2026). The driver
+#     only reads the 43455c0 file on an AP6255; AP6256 terminals load fw_bcm43456c5_ag.bin, so this needs no
+#     detection and changes nothing on them.
+F=/vendor/etc/firmware
+[ -f $F/fw_cyw43455.bin ] && [ -f $F/fw_bcm43455c0_ag.bin ] && mount -o bind $F/fw_cyw43455.bin $F/fw_bcm43455c0_ag.bin
 # 2) Sound: open the codec's playback path. RT5651: DAC -> line out + headphone out. ES8316: DAC -> headphone
 #    mixer -> headphone out (it has no line out). On both the speaker amp hangs off the headphone output and the
 #    amp pin is driven by 3c below.
