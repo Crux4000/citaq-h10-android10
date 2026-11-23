@@ -22,7 +22,7 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | Part | Detail |
 |---|---|
 | SoC | Rockchip RK3368, 4× + 4× Cortex-A53, PowerVR **G6110** (BVNC 5.9.1.46) |
-| RAM | 2 GB DDR3 (2× Samsung K4B4G16) |
+| RAM | 2 GB DDR3L (2× Samsung K4B8G1646E, 8 Gbit each) on the reference terminal. Other units can differ: unit 3 in [DEVICES.md](DEVICES.md) has 2× SK hynix H5TQ4G63CFR (4 Gbit each), so possibly 1 GB, see [INSTALL.md step 5](INSTALL.md#5-build-the-dtb-and-boot-image-linuxwsl) |
 | eMMC | Samsung 16 GB (14,910 MiB), HS200 under 4.19 (stock ran 50 MHz) |
 | Display | 10" 1024×768 4:3, **LVDS single-channel 8-bit, JEIDA**, 65 MHz |
 | Touch | Ilitek **ILI2105**, I2C2 (`i2c@ff140000`) addr **0x41**, IRQ gpio0 B4 (gpio12, low = data), reset gpio0 B3 (gpio11) |
