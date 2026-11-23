@@ -103,6 +103,7 @@ adb shell getprop ro.build.display.id
 adb shell cat /proc/partitions
 adb shell "ls -d /sys/bus/i2c/drivers/*/*-00*"
 adb shell "cat /sys/block/mmcblk*/device/name /sys/block/mmcblk*/device/manfid"
+adb shell grep MemTotal /proc/meminfo
 ```
 
 - `ro.board.platform` must be `rk3368`.
@@ -115,6 +116,8 @@ adb shell "cat /sys/block/mmcblk*/device/name /sys/block/mmcblk*/device/manfid"
   `user` build you'll need another way in (maskrom dump, UART, an exploit), and that's worth a
   report on its own.
 - In `/proc/partitions`, the `mmcblk0` line (in KB) gives the eMMC size.
+- `MemTotal` should be about 1,900,000 kB (2 GB). If yours has 1 GB, see
+  [INSTALL.md step 5](INSTALL.md#5-build-the-dtb-and-boot-image-linuxwsl).
 
 **Also very useful: your stock device tree.** It shows how your board is wired (sound codec,
 Wi-Fi/Bluetooth power and clock pins, panel, touch), which is the first thing to compare when

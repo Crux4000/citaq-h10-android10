@@ -99,3 +99,8 @@ The ME909s sits in the same mini PCIe slot, so the boot hook should power it the
 for data (but not Huawei's own `huawei_cdc_ncm`). Its AT port may not be `ttyUSB2`; `at-probe.sh` tries
 each port in turn. If you have one, please run `at-probe.sh` and open an issue with the log. The script
 hides the IMEI and other long numbers, but check the log before posting anyway.
+
+After boot, `/data/citaq/modem.log` shows which modem came up (its USB ID) and which `ttyUSB` ports it
+made: `1508:1001` is the Fibocom, `12d1:xxxx` a Huawei. If a modem causes any trouble (for example an
+extra network interface Android tries to use), `adb shell "touch /data/citaq/no-modem"` and a reboot
+leave it switched off.

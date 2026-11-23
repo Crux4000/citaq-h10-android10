@@ -28,6 +28,7 @@ import subprocess
 import sys
 
 BLK = 16384
+MIB = 1024 * 1024
 SLOTS = {'boot': 3328, 'recovery': 5376}
 SLOT_BLOCKS = 2048                 # 32 MiB each
 DEV = '/dev/block/mmcblk0'          # replaced by the eMMC found on the terminal (see main)
@@ -60,6 +61,28 @@ def sh(adbexe, cmd):
     return out.replace('__OK__', '').strip()
 
 
+# /memory reg as built by dtb/make_citaq_dtb.sh: <0 0x200000 0 size>, size = RAM - 2 MiB
+MEM_REG = {mb: bytes.fromhex('00000000 00200000 00000000') + (mb * MIB - 0x200000).to_bytes(4, 'big')
+           for mb in (1024, 2048)}
+
+
+def check_ram(adbexe, img):
+    """Stop if the image's DTB claims more RAM than this terminal has (the kernel would crash early)."""
+    if img[:8] != b'ANDROID!':
+        return                                     # a stock KRNL image: its DTB is Citaq's own
+    built = [mb for mb, reg in MEM_REG.items() if reg in img]
+    kb = int(sh(adbexe, "grep MemTotal /proc/meminfo").split()[1])
+    have = 2048 if kb > 1536 * 1024 else 1024
+    print(f'  RAM: {kb // 1024} MB ({have // 1024} GB terminal); image built for '
+          f'{" / ".join(f"{mb // 1024} GB" for mb in built) or "unknown"}')
+    if len(built) == 1 and built[0] > have:
+        sys.exit(f'this terminal has about {kb // 1024} MB of RAM, but the image was built for '
+                 f'{built[0] // 1024} GB and would crash on boot. Rebuild the DTB with RAM_MB={have} '
+                 '(INSTALL.md step 5; untested on a 1 GB terminal, please open an issue) - nothing written')
+    if len(built) == 1 and built[0] < have:
+        print(f'  note: the image only uses {built[0] // 1024} GB of this terminal\'s RAM')
+
+
 def main():
     a = [x for x in sys.argv[1:] if x != '--yes']
     yes = '--yes' in sys.argv
@@ -88,6 +111,7 @@ def main():
     DEV = f'/dev/block/{found[0]}'
     bb = 'busybox ' if sh(adbexe, 'command -v busybox >/dev/null && echo yes || echo none') == 'yes' else ''
     print(f'terminal: Android {rel}; slot {slot} = {DEV} block {blk} (x16 KiB)')
+    check_ram(adbexe, img)
 
     # 2. is the slot where we think it is?
     link = f'{BYNAME}/{slot}'

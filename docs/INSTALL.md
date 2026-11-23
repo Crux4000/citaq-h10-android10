@@ -139,6 +139,11 @@ python3 tools/build_px5_a10.py recovery.img px5/px5_kernel citaq-a10.dtb px5/px5
 ```
 `COUNTRY` is your Wi-Fi regulatory country (default `AU`).
 
+Every terminal so far has **2 GB of RAM**, and the DTB assumes that. Check yours on stock:
+`adb shell grep MemTotal /proc/meminfo` should say about 1,900,000 kB. If it says about 950,000 kB (1 GB),
+add `RAM_MB=1024` in front of the `make_citaq_a10_dtb.sh` command. That's untested, so please open an
+issue too. `flash_slot.py` (step 8) refuses to write an image built for more RAM than the terminal has.
+
 ## 6. Make room: shrink internal storage to 1 GiB
 
 The Android 10 `super`, `metadata`, `cache` and `userdata` go into the stock **user** partition
@@ -239,6 +244,12 @@ On this boot, touch, Wi-Fi, sound, brightness, the printer/LEDs and network adb 
 Bluetooth is ready too; switch it on from quick settings (if the tile does nothing, run
 `adb shell svc bluetooth enable` once). [BLUETOOTH.md](BLUETOOTH.md) has the checks.
 `/data/citaq/*.log` shows what the hook did.
+
+> **Screen dark, or the brightness slider works backwards?** Some terminals' backlight runs the other
+> way round (0 = full brightness). adb still works, so run
+> `adb shell "touch /data/citaq/backlight-invert"` and `adb reboot recovery`. After that,
+> `adb shell cat /data/citaq/blshim.log` should end in `, inverted)`. See
+> [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4).
 
 > The boot hook rotates the screen 180° (`user_rotation 2`) for the **assembled** case. On the bench
 > the picture will be upside down. Edit the `user_rotation 2` line in `citaq-boot.sh` if you mount it

@@ -57,6 +57,7 @@ body:
         adb shell cat /proc/partitions
         adb shell "ls -d /sys/bus/i2c/drivers/*/*-00*"
         adb shell "cat /sys/block/mmcblk*/device/name /sys/block/mmcblk*/device/manfid"
+        adb shell grep MemTotal /proc/meminfo
         ```
         The last two show which touch, sound and eMMC chips your board has. If you're already on Android 10, run them there instead.
       render: shell

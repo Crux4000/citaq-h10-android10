@@ -75,10 +75,14 @@ P -ts /serial@ff690000 status disabled
 
 # --- 3b. Memory: the PX5 DTB has no /memory node (its newer U-Boot adds one). The Citaq
 #        U-Boot 2017.02 fails that fixup ("could not set reg FDT_ERR_BADOFFSET"), so give the
-#        kernel the real map: 2 GB minus the first 2 MB (ATF).
+#        kernel the real map: RAM minus the first 2 MB (ATF). Every terminal so far has 2 GB.
+#        RAM_MB=1024 (environment) builds for a 1 GB terminal - untested. A DTB that claims more
+#        RAM than the board has crashes the kernel early; tools/flash_slot.py checks this.
+RAM_MB=${RAM_MB:-2048}
+case $RAM_MB in 1024|2048) ;; *) echo "RAM_MB must be 1024 or 2048" >&2; exit 1;; esac
 fdtput -c "$OUT" /memory
 P -ts /memory device_type memory
-P -tx /memory reg 0 0x200000 0 0x7fe00000
+P -tx /memory reg 0 0x200000 0 $(printf 0x%x $((RAM_MB * 1024 * 1024 - 0x200000)))
 
 # --- 4. ramoops sits at 0x110000 on the PX5 - below the Citaq's RAM start (0x200000,
 #        ARM Trusted Firmware lives there). Remove it.

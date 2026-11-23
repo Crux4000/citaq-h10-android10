@@ -207,7 +207,7 @@ echo 0 > /sys/class/gpio/gpio106/value
 echo 0 > /sys/class/gpio/gpio124/value
 chmod 666 /sys/class/gpio/gpio106/value /sys/class/gpio/gpio124/value /dev/ttyS1
 stty -F /dev/ttyS1 115200 raw -echo crtscts 2>/dev/null
-# 3b) 4G modem: Fibocom NL668-EAU on the internal USB hub (1-1.1). Nothing in the PX5 port powers it; the stock
+# 3b) 4G modem: Fibocom NL668-EAU (some units: Huawei ME909s-120, untested) on the internal USB hub (1-1.1). Nothing in the PX5 port powers it; the stock
 #     3.10 DT drove it through rk_bp_auto: power key gpio0 D4 (28), reset gpio3 B5 (109), W_DISABLE gpio3 B1 (105),
 #     all active-low. Driving all three high (key released, out of reset, radio enabled) brings it up on USB about
 #     14 s later: option -> /dev/ttyUSB0-3 (AT commands on ttyUSB2), qmi_wwan -> wwan0 + /dev/cdc-wdm0.
@@ -225,6 +225,9 @@ if [ ! -f /data/citaq/no-modem ]; then
       chmod 666 $t
       stty -F $t 115200 raw -echo -iuclc -olcuc -icanon 2>/dev/null
     done
+    # Which module is fitted varies (Fibocom 1508:1001, Huawei ME909s 12d1:xxxx); record it for reports.
+    u=/sys/bus/usb/devices/1-1.1
+    echo "$(date) modem $(cat $u/idVendor 2>/dev/null):$(cat $u/idProduct 2>/dev/null) $(cat $u/product 2>/dev/null); ports: $(ls /dev/ttyUSB* 2>/dev/null | tr '\n' ' ')" > /data/citaq/modem.log
   ) &
 fi
 # 3c) Headphone jack. The jack and the built-in speaker amp share the codec's headphone output, so the speakers can

@@ -5,10 +5,11 @@
 #            the junk the PX5 firmware makes up, so pick your own - e.g. CITAQ + your Wi-Fi MAC
 #            without colons. Becomes ro.boot.serialno (and adb's USB serial).
 #   COUNTRY  (environment, optional) Wi-Fi regulatory country, default AU.
+#   RAM_MB   (environment, optional) 2048 (default) or 1024 for a 1 GB terminal (untested).
 # Needs fdtput + dtc (device-tree-compiler) and python3. Runs make_citaq_dtb.sh first.
 set -e
 D=$(dirname "$0")
-[ $# -eq 3 ] || { sed -n '2,8p' "$0" >&2; exit 1; }
+[ $# -eq 3 ] || { sed -n '2,9p' "$0" >&2; exit 1; }
 SERIAL=$3
 COUNTRY=${COUNTRY:-AU}
 echo "$SERIAL" | grep -Eq '^[A-Za-z0-9]{6,20}$' || { echo "SERIAL must be 6-20 letters/digits" >&2; exit 1; }
