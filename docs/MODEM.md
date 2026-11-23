@@ -98,7 +98,7 @@ Citaq fits different modules to the same board. So far:
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
 | Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
-| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up, AT commands (unit 2); **untested with a SIM** |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up, AT commands, reads the SIM (unit 2); **not yet registered on a network** |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
 [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and
@@ -111,7 +111,13 @@ answered AT on **`ttyUSB2`**, same as the Fibocom:
 | `AT+CPIN?`, `AT+CSQ`, `AT+CREG?`, `AT+COPS?` | `+CME ERROR: 10` (SIM not inserted) |
 | `AT+CEREG?` | `0,2` (not registered, searching) |
 | `AT+COPS=?` | `+CME ERROR: 10`: unlike the Fibocom, the ME909s won't scan for networks without a SIM |
-| unprompted (`^HCSQ`, `^RSSI`) | `^HCSQ: "LTE",42,30,86,16` and `^RSSI: 17`: it hears LTE at about −79 dBm (RSRP about −111 dBm), so the antenna works. `at-probe.sh` now also asks for this with `AT^HCSQ?`, plus the SIM state with `AT^SYSINFOEX` |
+| unprompted (`^HCSQ`, `^RSSI`) | `^HCSQ: "LTE",42,30,86,16` and `^RSSI: 17`: it hears LTE at about −79 dBm (RSRP about −111 dBm), even though this unit's antennas have been removed. `at-probe.sh` now also asks for this with `AT^HCSQ?`, plus the SIM state with `AT^SYSINFOEX` |
+
+With a SIM in (23 Nov 2026), after a full power-off and reseating the SIM in its adaptor: `AT+CPIN?` gave
+`READY`, so the ME909s reads SIMs through the board's slot. The scan found Optus (available) and Vodafone
+(forbidden), but with no antennas fitted the signal came and went (`+CSQ: 16`, then `^RSSI: 99`) and it didn't
+register (`+CEREG: 0,2`, `^SRVST: 0`). It needs antennas, and an active SIM, before registration, SMS or data
+can be tested.
 
 For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
 mobile data on the ME909s is untested and may need a different route. If you have one, please run

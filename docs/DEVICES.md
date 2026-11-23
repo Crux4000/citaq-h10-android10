@@ -11,7 +11,7 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 | # | Device | Stock build | Sound | Wi-Fi / BT | Result | Report |
 |---|---|---|---|---|---|---|
 | 1 | Citaq H10-3 (ex-Menulog / Just Eat) | `20220926.JE.H10.5.1.0005` | RT5651 | AP6256 | ✅ Everything in [What works](../README.md#what-works) | @Crux4000 |
-| 2 | Citaq H10-3 (shipped with Android 6.0) | `POS_32-userdebug-20211101.1015` | ES8316 | AP6255 | ✅ Works; ⚠️ Wi-Fi after a soft reboot | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
+| 2 | Citaq H10-3 (shipped with Android 6.0) | `POS_32-userdebug-20211101.1015` | ES8316 | AP6255 | ✅ Works | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
 | 3 | Citaq H10-3 (ex-Menulog, green pre-rebrand) | `20200303.JE.H10.5.1.0004` | RT5651 | AP6255 | ❓ Checks only, not installed yet | [netguycode/citaq#32](https://github.com/netguycode/citaq/issues/32) |
 
 All three boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and
@@ -44,11 +44,12 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   the AP6256 file (phone paired 21 Nov 2026).
 - **Wi-Fi:** the AP6255's default firmware crashed about every 13 minutes. Cypress's firmware for the same
   chip ran overnight without a crash, and the boot hook now uses it (22 Nov 2026).
-  **Open:** after a soft reboot, Wi-Fi doesn't come back. A full power-off and on fixes it. Taking `wlan0`
-  down before the reboot fixed it every time (23 Nov 2026); the boot hook's automatic version (step 1c) is
-  being tested in [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4).
+  After a soft reboot Wi-Fi used to stay off until a full power-off. **Fixed** (23 Nov 2026): the boot hook
+  now takes `wlan0` down before every reboot (step 1c), and Wi-Fi came back on every reboot in testing
+  ([#4](https://github.com/Crux4000/citaq-h10-android10/issues/4), [#5](https://github.com/Crux4000/citaq-h10-android10/pull/5)).
 - **4G modem:** **Huawei ME909s-120** (revision `11.617.24.00.00`), like unit 3. On Android 10 it powers
-  up and answers AT commands on `ttyUSB2` (23 Nov 2026, no SIM). See [MODEM.md](MODEM.md#other-modems).
+  up, answers AT commands on `ttyUSB2` and reads the SIM (23 Nov 2026). Its antennas have been removed, so
+  it hasn't registered on a network yet. See [MODEM.md](MODEM.md#other-modems).
 - **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a
   hardware fault, not the port.
 
