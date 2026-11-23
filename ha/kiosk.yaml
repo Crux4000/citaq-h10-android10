@@ -135,36 +135,35 @@ script:
               title: Kiosk print failed
               message: "{{ build.stderr if build is defined else 'build step failed - check the logs' }}"
           - stop: Print job failed
-      # Ask the printer first. On a problem (no paper, lid open, ...) nothing is sent and the alert
-      # goes up. HA doesn't pass this stop on to a script that called kiosk_job, so a multi-part
-      # receipt should call script.kiosk_printer_check itself first (see docs/HOME-ASSISTANT.md).
-      # Afterwards input_text.kiosk_printer_status says "ok" or what went wrong.
-      - action: script.kiosk_printer_check
-        response_variable: prn
-      - if:
-          - condition: template
-            value_template: "{{ not prn.ok }}"
-        then:
-          - stop: Printer not ready, nothing printed
-            error: true
+      # Upload to job_next.bin: a stalled job may still be reading job.bin.
       - action: androidtv.upload
         target:
           entity_id: media_player.kiosk
         data:
           local_path: /config/kiosk/job.bin
-          device_path: /data/local/tmp/job.bin
-      # The job is written by a detached cat on the terminal, and this command watches the UART's
-      # byte counter. If the printer stops taking data for 10 s (paper ran out, lid opened), it
-      # returns "PRINT stalled" instead of hanging. The cat stays behind and finishes the job
-      # once the printer is fixed (or kiosk_printer_cancel drops it).
-      # Without root (no su) it falls back to a plain cat, which can hang as before.
+          device_path: /data/local/tmp/job_next.bin
+      # One adb call: ask the printer for its status (DLE EOT 1-4, ~0.5 s), and only if it's
+      # ready (lid shut, paper in, no error) send the job. The job is written by a detached cat
+      # and watched via the UART's byte counter; if the printer stops taking data for 10 s
+      # (paper ran out, lid opened) it returns "PRINT stalled" instead of hanging. The cat stays
+      # behind and finishes the job once the printer is fixed (or kiosk_printer_cancel drops it).
+      # Without root (no su) the byte counter can't be read, so it falls back to a plain cat.
       - action: androidtv.adb_command
         target:
           entity_id: media_player.kiosk
         data:
           command: >-
             S=/dev/ttyS1; T=/data/local/tmp; J=$T/job.bin;
+            if [ -f $T/prn.pid ] && grep -q job.bin /proc/$(cat $T/prn.pid)/cmdline 2>/dev/null;
+            then echo PRN busy; exit; fi;
             busybox stty -F $S 115200 raw -echo crtscts;
+            timeout 0.1 cat $S > /dev/null 2>&1;
+            (timeout 0.3 cat $S | od -An -tx1 > $T/prn_st) & sleep 0.1;
+            (printf '{{ "\\037\\033\\037\\120\\102" if is_state("input_boolean.kiosk_printer_beeper", "off") else "" }}\020\004\001\020\004\002\020\004\003\020\004\004'
+            > $S 2> /dev/null &); wait; st=$(cat $T/prn_st); echo "PRN $st"; set -- $st;
+            [ $# -eq 4 ] && [ $((16#$2 & 16#24)) -eq 0 ] && [ $((16#$4 & 16#60)) -eq 0 ]
+            && [ $((16#$3 & 16#68)) -eq 0 ] && [ $((16#$1 & 8)) -eq 0 ] || exit;
+            mv -f $T/job_next.bin $J;
             tx() { su 0 sed -n 's/^1:.* tx:\([0-9]*\).*/\1/p' /proc/tty/driver/serial; };
             t0=$(tx); if [ -z "$t0" ]; then cat $J > $S; echo PRINT ok; exit; fi;
             P=0; [ -f $T/prn_dirty ] && P=9000;
@@ -173,10 +172,10 @@ script:
             { [ $P -gt 0 ] && head -c $P /dev/zero; cat $J; } > $S; rm -f $T/prn_dirty"
             > /dev/null 2>&1 < /dev/null &
             last=$t0; still=0; i=0;
-            while [ $i -lt 600 ]; do sleep 0.5; i=$((i+1)); t=$(tx);
+            while [ $i -lt 1200 ]; do sleep 0.25; i=$((i+1)); t=$(tx);
             if [ "$t" -ge $want ]; then echo PRINT ok; exit; fi;
             if [ "$t" = "$last" ]; then still=$((still+1)); else still=0; last=$t; fi;
-            if [ $still -ge 20 ]; then break; fi; done;
+            if [ $still -ge 40 ]; then break; fi; done;
             echo "PRINT stalled $((t - t0)) of $((want - t0)) bytes"
         response_variable: sent
         continue_on_error: true
@@ -184,21 +183,32 @@ script:
           sent_text: >-
             {{ sent['media_player.kiosk'].adb_response | default('', true)
                if sent is defined and sent and 'media_player.kiosk' in sent else '' }}
-      - if:
-          - condition: template
-            value_template: "{{ 'PRINT ok' not in sent_text }}"
-        then:
-          - action: script.kiosk_printer_alert
-            data:
-              problem: "stuck mid-print (check the paper and lid)"
-          - stop: Printer stopped mid-print
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ 'PRINT ok' in sent_text }}"
+            sequence:
+              - action: script.kiosk_printer_alert
+                data:
+                  problem: ""
+          - conditions:
+              - condition: template
+                value_template: "{{ 'PRINT stalled' in sent_text }}"
+            sequence:
+              - action: script.kiosk_printer_alert
+                data:
+                  problem: "stuck mid-print (check the paper and lid)"
+              - stop: Printer stopped mid-print
+                error: true
+        # Not printed (no paper, lid open, busy, no answer): ask again for the reason, which also
+        # raises the alert. HA doesn't pass this stop on to a script that called kiosk_job, so a
+        # multi-part receipt should check input_text.kiosk_printer_status between parts.
+        default:
+          - action: script.kiosk_printer_check
+          - stop: Printer not ready, nothing printed
             error: true
-        else:
-          - action: script.kiosk_printer_alert
-            data:
-              problem: ""
 
-  # Printer status, straight from the printer (ESC/POS DLE EOT 1-4, about 0.6 s). Returns
+  # Printer status, straight from the printer (ESC/POS DLE EOT 1-4, about 0.5 s). Returns
   # {ok, problem, warning, raw} and raises or clears the alert. Safe to call any time, e.g. from a
   # dashboard button or a time-pattern automation.
   #   raw bytes on a healthy printer: 16 12 12 12 · lid open: 1e 36 12 72 · no paper: 1e 32 12 72
@@ -219,7 +229,7 @@ script:
             then echo PRN busy; exit; fi;
             busybox stty -F $S 115200 raw -echo crtscts;
             timeout 0.1 cat $S > /dev/null 2>&1;
-            (timeout 0.6 cat $S | od -An -tx1 > $T/prn_st) & sleep 0.15;
+            (timeout 0.3 cat $S | od -An -tx1 > $T/prn_st) & sleep 0.1;
             (printf '{{ "\\037\\033\\037\\120\\102" if is_state("input_boolean.kiosk_printer_beeper", "off") else "" }}\020\004\001\020\004\002\020\004\003\020\004\004'
             > $S 2> /dev/null &); wait; echo "PRN $(cat $T/prn_st)"
         response_variable: adb
