@@ -63,6 +63,10 @@ GPIO numbers are Linux numbers: `bank × 32 + letter × 8 + pin` (A=0, B=1, C=2,
 PWM0 (`pwm@ff680000`, pin GPIO3_B0), period 25 µs, **normal polarity**, duty 0 = off. In the port,
 the MTC `pwm-backlight` driver is pointed at the unused PWM3 and `blshim` drives PWM0 through sysfs.
 
+On at least one terminal (issue #4, same stock DTB) the backlight runs the other way round: duty 0 is
+full brightness, so Android's brightness came out backwards and "screen off" turned it fully on. Create
+`/data/citaq/backlight-invert` and reboot; the boot hook then starts `blshim -i`, which inverts the duty.
+
 ## RK818 PMIC
 
 I2C0 address 0x1c (`i2cget -f -y 0 0x1c <reg>`). With no driver, these are the registers that matter.

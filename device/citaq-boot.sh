@@ -187,7 +187,10 @@ case $codec in
 esac
 # 2b) Backlight: blshim mirrors Android's brightness (MTC pwm-backlight on dummy pwm3, v19 DTB) onto the
 #     real backlight PWM (pwm0). Without the v19 DTB pwm0 is still held by pwm-backlight and blshim just exits.
-[ -x /data/citaq/blshim ] && /data/citaq/blshim 3 > /data/citaq/blshim.log 2>&1 &
+#     Some terminals' backlight runs the other way round (duty 0 = brightest; issue #4): there, create
+#     /data/citaq/backlight-invert (`touch` it) and blshim inverts the duty cycle.
+bl_inv=; [ -f /data/citaq/backlight-invert ] && bl_inv=-i
+[ -x /data/citaq/blshim ] && /data/citaq/blshim 3 $bl_inv > /data/citaq/blshim.log 2>&1 &
 # 2c) Volume: volshim maps Android's media volume (Settings volume_music_speaker, 0-15) onto the codec's
 #     hardware DAC volume (RT5651 or ES8316, it checks which) - this build applies no software volume
 #     (the car MCU normally did).

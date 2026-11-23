@@ -89,6 +89,11 @@ Moving the brightness slider (or `settings put system screen_brightness …`) al
 If neither this nor the brightness slider changes anything, check that `blshim` is running:
 `adb root`, then `adb shell "ps -A | grep blshim; cat /data/citaq/blshim.log"`.
 
+If brightness works **backwards** (255 = dark, the slider dims as you drag it up, screen off turns it fully
+on), your terminal's backlight runs the other way round. Fix it with `adb root`, then
+`adb shell touch /data/citaq/backlight-invert` and a reboot (needs the boot hook and `blshim` from
+23 Nov 2026 or later). `blshim.log` then ends in `, inverted)`.
+
 ## LEDs
 
 Two status LEDs, red and blue, on plain on/off pins: they're either on or off, there's no

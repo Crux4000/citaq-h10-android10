@@ -4,8 +4,11 @@
  * HAL still has /sys/class/backlight/<x>/brightness to write to (0..255, 0 = screen off),
  * while the real backlight PWM (pwm0 @ff680000, pin GPIO3_B0) is free for this daemon to drive
  * through the PWM sysfs interface: period 25000 ns, normal polarity, duty 0 = dark.
+ * Some terminals have a backlight driver with the opposite sense (duty 0 = full brightness, issue #4,
+ * Nov 2026; same stock DTB as the reference unit). For those, -i inverts the duty cycle, so Android's
+ * brightness - and 0 = screen off - still mean the same thing.
  * build: aarch64-linux-gnu-gcc -static -O2 -o blshim blshim.c
- * usage: blshim [min_percent]   (default 3: lowest non-zero slider position = 3 % duty)
+ * usage: blshim [min_percent] [-i]   (default 3: lowest non-zero slider position = 3 % duty; -i = inverted)
  */
 #include <dirent.h>
 #include <stdio.h>
@@ -53,7 +56,11 @@ static int find_dir(const char *base, const char *want_link, char *out, size_t n
 }
 
 int main(int argc, char **argv) {
-    int minpct = argc > 1 ? atoi(argv[1]) : 3;
+    int minpct = 3, inv = 0;
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-i")) inv = 1;
+        else minpct = atoi(argv[i]);
+    }
     char chip[512], pwm[600], bl[512], p[700];
     for (int tries = 0; ; tries++) {          /* wait for sysfs at boot */
         if (!find_dir("/sys/class/pwm", "ff680000", chip, sizeof chip) &&
@@ -75,7 +82,7 @@ int main(int argc, char **argv) {
     snprintf(dpath, sizeof dpath, "%s/duty_cycle", pwm);
     int max = rd(mpath);
     if (max <= 0) max = 255;
-    printf("blshim: %s -> %s (max %d, min %d%%)\n", bl, pwm, max, minpct);
+    printf("blshim: %s -> %s (max %d, min %d%%%s)\n", bl, pwm, max, minpct, inv ? ", inverted" : "");
     fflush(stdout);
     int last = -2;
     for (;;) {
@@ -84,7 +91,7 @@ int main(int argc, char **argv) {
             if (b > max) b = max;
             long duty = b == 0 ? 0 :
                 (long)PERIOD * (minpct * max + (long)b * (100 - minpct)) / (100L * max);
-            wr(dpath, duty);
+            wr(dpath, inv ? PERIOD - duty : duty);
             last = b;
         }
         usleep(100000);
