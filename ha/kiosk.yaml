@@ -14,6 +14,15 @@ input_text:
   kiosk_qr_text:
     name: Kiosk QR text
     max: 255
+  # Last printer check: "ok", or the problem ("out of paper", "lid open", ...). Set by the scripts.
+  kiosk_printer_status:
+    name: Kiosk printer status
+    max: 100
+  # Optional: a Companion app notify action (e.g. notify.mobile_app_kiosk) for printer error pop-ups
+  # on the terminal's own screen. Leave empty for HA notifications only.
+  kiosk_notify_target:
+    name: Kiosk notify target
+    max: 100
 
 input_select:
   kiosk_print_size:
@@ -38,6 +47,11 @@ input_boolean:
   kiosk_print_cut:
     name: Kiosk cut after printing
     initial: true
+  # The printer's own alarm (no paper / lid open). Off = silenced: every check and print job
+  # re-sends "buzzer off", because each job's printer reset (ESC @) turns the buzzer back on.
+  kiosk_printer_beeper:
+    name: Kiosk printer beeper
+    icon: mdi:volume-high
 
 input_number:
   kiosk_qr_size:
@@ -70,6 +84,7 @@ shell_command:
     --size {{ size | default('normal') }} --align {{ align | default('left') }}
     --bold {{ bold | default('off') }} --cut {{ cut | default('on') }}
     --qrsize {{ qrsize | default(8) | int }} --flip {{ flip | default('on') }}
+    --beeper {{ beeper | default('off') }}
   kiosk_list_images: python3 /config/kiosk/kiosk_print.py list
 
 script:
@@ -108,6 +123,7 @@ script:
           cut: "{{ cut | default('on') }}"
           qrsize: "{{ qrsize | default(8) | int }}"
           flip: "{{ flip | default('on') }}"
+          beeper: "{{ states('input_boolean.kiosk_printer_beeper') }}"
         response_variable: build
         continue_on_error: true
       - if:
@@ -119,19 +135,221 @@ script:
               title: Kiosk print failed
               message: "{{ build.stderr if build is defined else 'build step failed - check the logs' }}"
           - stop: Print job failed
+      # Ask the printer first. On a problem (no paper, lid open, ...) nothing is sent, the alert
+      # goes up, and the script stops with an error, so a multi-part receipt stops too.
+      - action: script.kiosk_printer_check
+        response_variable: prn
+      - if:
+          - condition: template
+            value_template: "{{ not prn.ok }}"
+        then:
+          - stop: "Printer: {{ prn.problem }}"
+            error: true
       - action: androidtv.upload
         target:
           entity_id: media_player.kiosk
         data:
           local_path: /config/kiosk/job.bin
           device_path: /data/local/tmp/job.bin
+      # The job is written by a detached cat on the terminal, and this command watches the UART's
+      # byte counter. If the printer stops taking data for 10 s (paper ran out, lid opened), it
+      # returns "PRINT stalled" instead of hanging. The cat stays behind and finishes the job
+      # once the printer is fixed (or kiosk_printer_cancel drops it).
+      # Without root (no su) it falls back to a plain cat, which can hang as before.
       - action: androidtv.adb_command
         target:
           entity_id: media_player.kiosk
         data:
           command: >-
-            busybox stty -F /dev/ttyS1 115200 raw -echo crtscts;
-            cat /data/local/tmp/job.bin > /dev/ttyS1
+            S=/dev/ttyS1; T=/data/local/tmp; J=$T/job.bin;
+            busybox stty -F $S 115200 raw -echo crtscts;
+            tx() { su 0 sed -n 's/^1:.* tx:\([0-9]*\).*/\1/p' /proc/tty/driver/serial; };
+            t0=$(tx); if [ -z "$t0" ]; then cat $J > $S; echo PRINT ok; exit; fi;
+            P=0; [ -f $T/prn_dirty ] && P=9000;
+            want=$((t0 + P + $(stat -c %s $J)));
+            setsid sh -c "trap '' HUP; echo \$\$ > $T/prn.pid;
+            { [ $P -gt 0 ] && head -c $P /dev/zero; cat $J; } > $S; rm -f $T/prn_dirty"
+            > /dev/null 2>&1 < /dev/null &
+            last=$t0; still=0; i=0;
+            while [ $i -lt 600 ]; do sleep 0.5; i=$((i+1)); t=$(tx);
+            if [ "$t" -ge $want ]; then echo PRINT ok; exit; fi;
+            if [ "$t" = "$last" ]; then still=$((still+1)); else still=0; last=$t; fi;
+            if [ $still -ge 20 ]; then break; fi; done;
+            echo "PRINT stalled $((t - t0)) of $((want - t0)) bytes"
+        response_variable: sent
+        continue_on_error: true
+      - variables:
+          sent_text: >-
+            {{ sent['media_player.kiosk'].adb_response | default('', true)
+               if sent is defined and sent and 'media_player.kiosk' in sent else '' }}
+      - if:
+          - condition: template
+            value_template: "{{ 'PRINT ok' not in sent_text }}"
+        then:
+          - action: script.kiosk_printer_alert
+            data:
+              problem: "stuck mid-print (check the paper and lid)"
+          - stop: "Printer stopped mid-print"
+            error: true
+        else:
+          - action: script.kiosk_printer_alert
+            data:
+              problem: ""
+
+  # Printer status, straight from the printer (ESC/POS DLE EOT 1-4, about 0.6 s). Returns
+  # {ok, problem, warning, raw} and raises or clears the alert. Safe to call any time, e.g. from a
+  # dashboard button or a time-pattern automation.
+  #   raw bytes on a healthy printer: 16 12 12 12 · lid open: 1e 36 12 72 · no paper: 1e 32 12 72
+  kiosk_printer_check:
+    alias: Kiosk printer check
+    mode: queued
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          # A print still waiting on the printer (stalled job) owns the port: report it, don't
+          # query. Otherwise flush stale replies, send buzzer-off (if the beeper is off) and the
+          # four status queries, and read the four reply bytes.
+          command: >-
+            S=/dev/ttyS1; T=/data/local/tmp;
+            if [ -f $T/prn.pid ] && grep -q job.bin /proc/$(cat $T/prn.pid)/cmdline 2>/dev/null;
+            then echo PRN busy; exit; fi;
+            busybox stty -F $S 115200 raw -echo crtscts;
+            timeout 0.1 cat $S > /dev/null 2>&1;
+            (timeout 0.6 cat $S | od -An -tx1 > $T/prn_st) & sleep 0.15;
+            (printf '{{ "\\037\\033\\037\\120\\102" if is_state("input_boolean.kiosk_printer_beeper", "off") else "" }}\020\004\001\020\004\002\020\004\003\020\004\004'
+            > $S 2> /dev/null &); wait; echo "PRN $(cat $T/prn_st)"
+        response_variable: adb
+        continue_on_error: true
+      - variables:
+          raw: >-
+            {%- set r = adb['media_player.kiosk'].adb_response | default('', true)
+                if adb is defined and adb and 'media_player.kiosk' in adb else '' -%}
+            {{- (r | regex_findall('PRN ([0-9a-z ]*)') | first | default('')) | trim -}}
+          result: >-
+            {%- set b = raw.split() -%}
+            {%- set ns = namespace(problem='', warning='') -%}
+            {%- if raw == 'busy' -%}
+              {%- set ns.problem = 'stuck mid-print (check the paper and lid)' -%}
+            {%- elif b | length < 4 -%}
+              {%- set ns.problem = 'not responding' -%}
+            {%- else -%}
+              {%- set s1 = b[0] | int(0, 16) -%}{%- set s2 = b[1] | int(0, 16) -%}
+              {%- set s3 = b[2] | int(0, 16) -%}{%- set s4 = b[3] | int(0, 16) -%}
+              {%- if s2 | bitwise_and(4) -%}{%- set ns.problem = 'lid open' -%}
+              {%- elif s4 | bitwise_and(96) or s2 | bitwise_and(32) -%}{%- set ns.problem = 'out of paper' -%}
+              {%- elif s3 | bitwise_and(8) -%}{%- set ns.problem = 'cutter jammed' -%}
+              {%- elif s3 | bitwise_and(96) -%}{%- set ns.problem = 'printer error (overheated?)' -%}
+              {%- elif s1 | bitwise_and(8) -%}{%- set ns.problem = 'offline' -%}
+              {%- endif -%}
+              {%- if s4 | bitwise_and(12) -%}{%- set ns.warning = 'paper running low' -%}{%- endif -%}
+            {%- endif -%}
+            {{- {'ok': ns.problem == '', 'problem': ns.problem, 'warning': ns.warning, 'raw': raw} -}}
+      - action: script.kiosk_printer_alert
+        data:
+          problem: "{{ result.problem }}"
+          warning: "{{ result.warning }}"
+      - stop: done
+        response_variable: result
+
+  # Raises (problem set) or clears (problem empty) the printer alert: HA notification, red LED
+  # blinking until the next good print, and a pop-up on the terminal if kiosk_notify_target is set.
+  kiosk_printer_alert:
+    alias: Kiosk printer alert
+    mode: queued
+    fields:
+      problem:
+        example: out of paper
+      warning:
+        example: paper running low
+    sequence:
+      - variables:
+          problem: "{{ problem | default('') }}"
+          warning: "{{ warning | default('') }}"
+          was: "{{ states('input_text.kiosk_printer_status') }}"
+          target: "{{ states('input_text.kiosk_notify_target') | trim }}"
+      - if:
+          - condition: template
+            value_template: "{{ problem != '' }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              notification_id: kiosk_printer
+              title: Kiosk printer
+              message: "Printer: {{ problem }}. Nothing was printed."
+          - action: script.kiosk_led
+            data:
+              pattern: blink
+              colour: red
+              speed: 400
+          - if:
+              - condition: template
+                value_template: "{{ target.startswith('notify.') }}"
+            then:
+              - action: "{{ target }}"
+                continue_on_error: true
+                data:
+                  title: Printer problem
+                  message: "Printer: {{ problem }}"
+                  data:
+                    tag: kiosk_printer
+                    channel: Printer
+                    importance: high
+                    priority: high
+                    ttl: 0
+                    sticky: "true"
+                    notification_icon: mdi:printer-alert
+        else:
+          - if:
+              - condition: template
+                value_template: "{{ was not in ['ok', 'paper running low', '', 'unknown', 'unavailable'] }}"
+            then:
+              - action: persistent_notification.dismiss
+                data:
+                  notification_id: kiosk_printer
+              - action: script.kiosk_led
+                data:
+                  pattern: "off"
+              - if:
+                  - condition: template
+                    value_template: "{{ target.startswith('notify.') }}"
+                then:
+                  - action: "{{ target }}"
+                    continue_on_error: true
+                    data:
+                      message: clear_notification
+                      data:
+                        tag: kiosk_printer
+          - if:
+              - condition: template
+                value_template: "{{ warning != '' and was != warning }}"
+            then:
+              - action: persistent_notification.create
+                data:
+                  notification_id: kiosk_printer_paper
+                  title: Kiosk printer
+                  message: "The receipt paper is running low."
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.kiosk_printer_status
+        data:
+          value: "{{ problem or warning or 'ok' }}"
+
+  # Drops a stalled print job (e.g. you don't want it any more). The next print first sends
+  # 9000 blank bytes + a printer reset, to finish off any half-sent image cleanly.
+  kiosk_printer_cancel:
+    alias: Kiosk printer cancel stuck job
+    sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: >-
+            T=/data/local/tmp;
+            if [ -f $T/prn.pid ] && grep -q job.bin /proc/$(cat $T/prn.pid)/cmdline 2>/dev/null;
+            then kill -9 -- -$(cat $T/prn.pid); touch $T/prn_dirty; fi; rm -f $T/prn.pid
+      - action: script.kiosk_printer_check
 
   kiosk_print_from_dashboard:
     alias: Kiosk print (dashboard text)
@@ -223,6 +441,8 @@ script:
           command: "busybox printf '\\033d\\003\\035VB\\000' > /dev/ttyS1"
 
   # Printer alarm buzzer off (no paper / lid open). Citaq command 1F 1B 1F 50 42.
+  # Lasts until the printer's next reset (every print job starts with one), so for "always off"
+  # leave input_boolean.kiosk_printer_beeper off instead: the print scripts then re-send this.
   kiosk_buzzer_off:
     alias: Kiosk printer buzzer off
     sequence:
@@ -342,6 +562,28 @@ script:
             am start -n io.homeassistant.companion.android/.launch.LaunchActivity
 
 automation:
+  # Beeper switch: off sends buzzer-off now, on resets the printer (ESC @), which turns it back on.
+  # Also re-applied when the terminal comes back (the printer powers up with the beeper on).
+  - id: kiosk_printer_beeper_apply
+    alias: Kiosk printer beeper apply
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.kiosk_printer_beeper
+      - trigger: state
+        entity_id: media_player.kiosk
+        from: unavailable
+    actions:
+      - delay: 2
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.kiosk
+        data:
+          command: >-
+            {{ "printf '\\037\\033\\037\\120\\102' > /dev/ttyS1"
+               if is_state('input_boolean.kiosk_printer_beeper', 'off')
+               else "printf '\\033@' > /dev/ttyS1" }}
+
   - id: kiosk_refresh_images_on_start
     alias: Kiosk refresh image list on start
     triggers:
