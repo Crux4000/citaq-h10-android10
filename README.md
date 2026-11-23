@@ -144,10 +144,10 @@ docs/         install, recovery, device list, hardware map, porting notes, Wi-Fi
   ```
   The same command works from Windows (cmd or PowerShell) and Linux, and doesn't need root (on stock
   5.1, if it says `printf: not found`, use `busybox printf` instead). It sends
-  the Citaq printer command `1F 1B 1F 50 42`. It's not known yet whether the printer remembers this
-  after a power cycle, so if the beeping comes back, send it again (or use the `kiosk_buzzer_off`
-  script in the [Home Assistant package](docs/HOME-ASSISTANT.md#receipt-printer)). If your printer has
-  been taken out and something still beeps, this command can't reach it.
+  the Citaq printer command `1F 1B 1F 50 42`. The setting is lost when the printer powers off. With
+  the [Home Assistant package](docs/HOME-ASSISTANT.md#the-beeper), leave the **Kiosk printer beeper**
+  switch off and HA re-sends it whenever the terminal comes back. If your printer has been taken out
+  and something still beeps, this command can't reach it.
 
 - **No sound card? Your terminal may have the other codec (support added 21 Nov 2026, confirmed working).**
   Citaq fits either a Realtek RT5651 or an Everest ES8316 sound chip, with identical stock firmware.

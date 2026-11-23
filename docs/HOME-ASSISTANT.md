@@ -65,10 +65,60 @@ by default:
 A receipt made of **several jobs** has to be sent **bottom part first**: QR, then body, then title,
 with `cut: "on"` only on the last one. Pass `flip: "off"` to print the normal way.
 
-How it works: HA builds the ESC/POS bytes, uploads them with `androidtv.upload`, then runs
-`cat job.bin > /dev/ttyS1`. The boot hook sets the port to 115200 raw with CTS flow control and
-makes it writable. Feed, cut, cash-drawer-kick and printer-buzzer-off (`kiosk_buzzer_off`) scripts are
-included too.
+How it works: HA builds the ESC/POS bytes and uploads them with `androidtv.upload`. One adb command
+then asks the printer for its status and, only if it's ready, sends the job and watches the UART's
+byte counter until every byte has gone. The boot hook sets the port to 115200 raw with CTS flow
+control and makes it writable. Feed, cut, cash-drawer-kick and printer-buzzer-off
+(`kiosk_buzzer_off`) scripts are included too.
+
+### When the printer has a problem
+
+Every job asks the printer first (ESC/POS `DLE EOT`, about half a second). If the lid is open, the
+paper is out, the cutter is jammed or the printer doesn't answer, **nothing is sent**, and:
+
+- HA shows a notification and the **red LED blinks**
+- `input_text.kiosk_printer_status` says what's wrong (`out of paper`, `lid open`, ...); it's `ok`
+  after a good print
+- if you put a Companion app notify action in `input_text.kiosk_notify_target` (for example
+  `notify.mobile_app_kiosk`), the terminal itself shows a pop-up
+- every 30 seconds HA looks again, so the LED, pop-up and notification clear by themselves once the
+  paper is in and the lid is shut
+
+If the printer stops taking data part-way through a job (paper runs out mid-receipt), HA gives up
+waiting after 10 seconds and raises the same alert, instead of hanging. That matters because the ADB
+integration has only one connection: a print that never finishes used to freeze every other kiosk
+command too. The job stays queued on the terminal and finishes once the printer is fixed, or
+`script.kiosk_printer_cancel` drops it.
+
+`script.kiosk_printer_check` reads the status on demand and returns `ok`, `problem` and `warning`
+(`paper running low`). The four reply bytes, for reference:
+
+| State | Status | Offline cause | Error | Paper sensor |
+|---|---|---|---|---|
+| Ready | `16` | `12` | `12` | `12` |
+| Lid open | `1e` | `36` | `12` | `72` |
+| Out of paper, lid shut | `1e` | `32` | `12` | `72` |
+
+**Multi-part receipts:** HA doesn't pass a failed `kiosk_job` back to the script that called it, so
+check the status between parts, or the later parts will be tried anyway:
+
+```yaml
+- action: script.kiosk_job
+  data: {mode: image, data: logo.png, cut: "off"}
+- condition: state
+  entity_id: input_text.kiosk_printer_status
+  state: ["ok", "paper running low"]
+- action: script.kiosk_job
+  data: {mode: text, data: "Washing machine finished"}
+```
+
+### The beeper
+
+The printer has its own alarm for no paper or lid open. `input_boolean.kiosk_printer_beeper` (off by
+default) controls it: switching it sends the Citaq buzzer command, and it's sent again whenever the
+terminal comes back online, because the printer powers up with the beeper on. Print jobs deliberately
+don't reset the printer (`ESC @`) or touch the buzzer setting: doing that in every job made the printer
+pause and beep between the parts of a receipt.
 
 ## Screen off
 
