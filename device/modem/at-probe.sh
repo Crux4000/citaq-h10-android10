@@ -1,5 +1,7 @@
 #!/system/bin/sh
-# Citaq H10-3: talk to the Fibocom NL668 over AT commands (no SIM needed).
+# Citaq H10-3: talk to the 4G modem over AT commands (no SIM needed).
+# Written for the Fibocom NL668; other modules (e.g. Huawei ME909s) answer ERROR to the Fibocom-only queries.
+# Long digit runs (IMEI, IMSI, ICCID) are hidden in the log. Still check it before posting it publicly.
 # The boot hook (device/citaq-boot.sh, 3b) powers the modem. Run as root:  su 0 sh /data/local/tmp/at-probe.sh
 # Log: /data/local/tmp/at-probe.log
 L=/data/local/tmp/at-probe.log
@@ -18,7 +20,7 @@ at() {  # at <port> <command> <seconds to wait>
   done
   kill $C 2>/dev/null; wait $C 2>/dev/null
   echo ">> $2  (${w}s)"
-  tr -d '\r' < $T | grep -v -i -e '^$' -e "^$2\$" | sed 's/^/   /'
+  tr -d '\r' < $T | grep -v -i -e '^$' -e "^$2\$" | sed -E -e 's/[0-9]{14,20}/<hidden>/g' -e 's/^/   /'
 }
 
 echo "== $(date) AT probe"
@@ -36,7 +38,7 @@ done
 at $P ATE0 2                   # echo off
 at $P ATI 3                    # manufacturer / model / revision
 at $P AT+CGMR 3                # firmware
-at $P AT+CGSN 3                # IMEI
+at $P AT+CGSN 3                # IMEI (hidden in the log; only shows the modem reports one)
 at $P AT+CFUN? 3               # 1 = full functionality
 at $P AT+CPIN? 3               # expect: SIM not inserted
 at $P AT+CSQ 3                 # signal (99,99 = unknown / none)

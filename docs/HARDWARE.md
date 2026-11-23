@@ -31,7 +31,7 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | Audio | **Realtek RT5651** on I2C1 @ 0x1a **or Everest ES8316** @ 0x10 (Citaq fits either; same stock firmware, which lists both - the boot hook detects which and binds the matching sound card, result in `/data/citaq/codec`), i2s-8ch, MCLK = SCLK_I2S_8CH_OUT; speaker amp gpio0 C3 (gpio19), **active high**. The headphone jack and the speaker amp share the headphone output, so the boot hook mutes the amp while the jack is in. The ES8316 has no line out; its speaker amp is the same pin |
 | Printer | 80 mm thermal, ESC/POS, **UART1 → /dev/ttyS1, 115200, CTS flow control**, 552 dots wide. Buzzer off: `1F 1B 1F 50 42` (Citaq-specific; `1F 1B 1F 50 40` didn't silence it, so it's probably buzzer on, untested) |
 | LEDs | red **gpio124**, blue **gpio106** (1 = on) |
-| USB | internal GL850G hub (1-1) → Fibocom NL668-EAU 4G modem (1-1.1, see [MODEM.md](MODEM.md)); rear hub GL850G (1-1.3) → 3 ports + RTL8152 Ethernet (1-1.3.4) |
+| USB | internal GL850G hub (1-1) → 4G modem (1-1.1): Fibocom NL668-EAU, or Huawei ME909s-120 on some units (see [MODEM.md](MODEM.md)); rear hub GL850G (1-1.3) → 3 ports + RTL8152 Ethernet (1-1.3.4) |
 | JP2 | internal micro-USB = dwc2 OTG (`usb@ff580000`) = adb port |
 | Debug UART | UART2: **TP17** board TX, **TP18** board RX, **TP19** GND, 3.3 V, 115200 |
 | Buttons | power key gpio0 A2 (active low); RECOVER / RESET on the compute board |

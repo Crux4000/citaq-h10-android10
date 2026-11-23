@@ -7,7 +7,8 @@
 > carrier and the output of `device/modem/at-probe.sh`). That's how this gets from "should work" to "works".
 
 The H10-3 has a **Fibocom NL668-EAU** LTE module on the compute board, with its own SIM slot. It sits on the
-internal USB hub at **1-1.1**.
+internal USB hub at **1-1.1**. Some terminals have a **Huawei ME909s-120** in the same slot instead (see
+[Other modems](#other-modems)). Everything below was tested on the NL668.
 
 ## What the port does
 
@@ -83,3 +84,18 @@ that knows the NL668. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit. 
 `gsm.version.ril-impl = RIL_RK_DATA_V10.0`, Rockchip's generic RIL for USB 3G/4G dongles, but its daemon isn't
 running, and whether it supports the NL668 is unknown. That's a possible route to Android-level mobile data for
 anyone with a SIM to test. Talking to the modem directly over AT/QMI is the practical route for now.
+
+## Other modems
+
+Citaq fits different modules to the same board. So far:
+
+| Module | Seen on | Status on Android 10 |
+|---|---|---|
+| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
+| Huawei ME909s-120 | unit 3 | **untested** |
+
+The ME909s sits in the same mini PCIe slot, so the boot hook should power it the same way. The kernel's
+`option` driver normally picks up Huawei's AT ports, and it also has `cdc_ether`, `cdc_ncm` and `cdc_mbim`
+for data (but not Huawei's own `huawei_cdc_ncm`). Its AT port may not be `ttyUSB2`; `at-probe.sh` tries
+each port in turn. If you have one, please run `at-probe.sh` and open an issue with the log. The script
+hides the IMEI and other long numbers, but check the log before posting anyway.
