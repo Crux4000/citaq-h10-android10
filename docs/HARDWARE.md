@@ -33,6 +33,7 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | LEDs | red **gpio124**, blue **gpio106** (1 = on) |
 | USB | internal GL850G hub (1-1) → 4G modem (1-1.1): Fibocom NL668-EAU, or Huawei ME909s-120 on some units (see [MODEM.md](MODEM.md)); rear hub GL850G (1-1.3) → 3 ports + RTL8152 Ethernet (1-1.3.4) |
 | JP2 | internal micro-USB = dwc2 OTG (`usb@ff580000`) = adb port |
+| CN13 / CN14 | two spare internal USB headers on the compute board, see [Spare internal USB ports](#spare-internal-usb-ports) |
 | Debug UART | UART2: **TP17** board TX, **TP18** board RX, **TP19** GND, 3.3 V, 115200 |
 | Buttons | power key gpio0 A2 (active low); RECOVER / RESET on the compute board |
 | Battery | 1S 3.7 V 1600 mAh LiPo (backup). The board won't run without it |
@@ -40,6 +41,25 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | Other | DS2411 1-wire silicon serial on gpio3 B4 (unused so far); no camera |
 
 GPIO numbers are Linux numbers: `bank × 32 + letter × 8 + pin` (A=0, B=1, C=2, D=3).
+
+## Spare internal USB ports
+
+Reported in [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4), mapped on a spare board. Not yet
+checked on the reference terminal. **Check with a meter on your own board before connecting anything.**
+
+CN13 and CN14 are 5-pin headers on the compute board, each a plain USB 2.0 port. An arrow on the PCB marks pin 1.
+Both have the same pinout:
+
+| Pin | Signal |
+|---|---|
+| 1 | +5 V |
+| 2 | D− |
+| 3 | D+ |
+| 4 | GND |
+| 5 | not connected (only goes to a test pad) |
+
+That's two more ports inside the case, for a barcode scanner, SDR dongle or similar. The reporter counts a
+third spare port if the expansion board isn't fitted. Which hub port each header hangs off isn't mapped yet.
 
 ## Other GPIOs
 
