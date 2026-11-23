@@ -44,8 +44,9 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   the AP6256 file (phone paired 21 Nov 2026).
 - **Wi-Fi:** the AP6255's default firmware crashed about every 13 minutes. Cypress's firmware for the same
   chip ran overnight without a crash, and the boot hook now uses it (22 Nov 2026).
-  **Open:** after a soft reboot, Wi-Fi doesn't come back. A full power-off and on fixes it. The cause is
-  found and a fix is being tested in [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4).
+  **Open:** after a soft reboot, Wi-Fi doesn't come back. A full power-off and on fixes it. Taking `wlan0`
+  down before the reboot fixed it every time (23 Nov 2026); the boot hook's automatic version (step 1c) is
+  being tested in [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4).
 - **4G modem:** **Huawei ME909s-120** (revision `11.617.24.00.00`), like unit 3. On Android 10 it powers
   up and answers AT commands on `ttyUSB2` (23 Nov 2026, no SIM). See [MODEM.md](MODEM.md#other-modems).
 - **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a

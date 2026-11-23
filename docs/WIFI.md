@@ -60,6 +60,15 @@ same chip, `fw_cyw43455.bin` (`version 7.45.203 (r724662 CY)`). Bind-mounted ove
 ran overnight with no trap, so `citaq-boot.sh` (step 1b) now does that on every boot. AP6256 terminals
 load `fw_bcm43456c5_ag.bin`, so the swap doesn't affect them and no detection is needed.
 
+**AP6255 Wi-Fi dead after a soft reboot.** Nothing power-cycles the Wi-Fi chip on a reboot: there's no
+WL_REG_ON GPIO, and the SDIO power sequence only runs when the host starts. So the chip keeps running its
+firmware, and on an AP6255 the next boot can't reset it (`Error resetting SDIO communications (-2)` in
+`dmesg`). Wi-Fi then stays off until a full power-off and on. Taking `wlan0` down before the reboot stops
+the firmware, and the next boot comes up clean ([#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)).
+`citaq-boot.sh` (step 1c) does this on every reboot and shutdown, however it's started (Android's menu,
+`adb reboot` or `reboot`), without changing the Wi-Fi setting. Each run adds a line to
+`/data/citaq/wifi-reboot.log`.
+
 The RK818's 32 kHz output must be on and set as a clock (reg 0x20 = `xx01`). After a battery pull it
 isn't, and the driver times out ("HT Avail timeout"). `citaq-boot.sh` fixes the register and
 re-probes SDIO.
