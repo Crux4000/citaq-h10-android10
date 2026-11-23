@@ -47,8 +47,9 @@ input_boolean:
   kiosk_print_cut:
     name: Kiosk cut after printing
     initial: true
-  # The printer's own alarm (no paper / lid open). Off = silenced: every check and print job
-  # re-sends "buzzer off", because each job's printer reset (ESC @) turns the buzzer back on.
+  # The printer's own alarm (no paper / lid open). Applied by kiosk_printer_beeper_apply when
+  # switched and whenever the terminal comes back. Print jobs no longer reset the printer, so
+  # nothing turns it back on in between (sending it with every job made the printer pause and beep).
   kiosk_printer_beeper:
     name: Kiosk printer beeper
     icon: mdi:volume-high
@@ -84,7 +85,6 @@ shell_command:
     --size {{ size | default('normal') }} --align {{ align | default('left') }}
     --bold {{ bold | default('off') }} --cut {{ cut | default('on') }}
     --qrsize {{ qrsize | default(8) | int }} --flip {{ flip | default('on') }}
-    --beeper {{ beeper | default('off') }}
   kiosk_list_images: python3 /config/kiosk/kiosk_print.py list
 
 script:
@@ -123,7 +123,6 @@ script:
           cut: "{{ cut | default('on') }}"
           qrsize: "{{ qrsize | default(8) | int }}"
           flip: "{{ flip | default('on') }}"
-          beeper: "{{ states('input_boolean.kiosk_printer_beeper') }}"
         response_variable: build
         continue_on_error: true
       - if:
@@ -159,17 +158,19 @@ script:
             busybox stty -F $S 115200 raw -echo crtscts;
             timeout 0.1 cat $S > /dev/null 2>&1;
             (timeout 0.3 cat $S | od -An -tx1 > $T/prn_st) & sleep 0.1;
-            (printf '{{ "\\037\\033\\037\\120\\102" if is_state("input_boolean.kiosk_printer_beeper", "off") else "" }}\020\004\001\020\004\002\020\004\003\020\004\004'
+            (printf '\020\004\001\020\004\002\020\004\003\020\004\004'
             > $S 2> /dev/null &); wait; st=$(cat $T/prn_st); echo "PRN $st"; set -- $st;
             [ $# -eq 4 ] && [ $((16#$2 & 16#24)) -eq 0 ] && [ $((16#$4 & 16#60)) -eq 0 ]
             && [ $((16#$3 & 16#68)) -eq 0 ] && [ $((16#$1 & 8)) -eq 0 ] || exit;
             mv -f $T/job_next.bin $J;
             tx() { su 0 sed -n 's/^1:.* tx:\([0-9]*\).*/\1/p' /proc/tty/driver/serial; };
             t0=$(tx); if [ -z "$t0" ]; then cat $J > $S; echo PRINT ok; exit; fi;
-            P=0; [ -f $T/prn_dirty ] && P=9000;
-            want=$((t0 + P + $(stat -c %s $J)));
+            {%- set reset = "\\033@" ~ ("\\037\\033\\037\\120\\102" if is_state("input_boolean.kiosk_printer_beeper", "off") else "") %}
+            P=0; R=0; if [ -f $T/prn_dirty ]; then P=9000; printf '{{ reset }}' > $T/prn_reset;
+            R=$(stat -c %s $T/prn_reset); fi;
+            want=$((t0 + P + R + $(stat -c %s $J)));
             setsid sh -c "trap '' HUP; echo \$\$ > $T/prn.pid;
-            { [ $P -gt 0 ] && head -c $P /dev/zero; cat $J; } > $S; rm -f $T/prn_dirty"
+            { [ $P -gt 0 ] && head -c $P /dev/zero && cat $T/prn_reset; cat $J; } > $S; rm -f $T/prn_dirty"
             > /dev/null 2>&1 < /dev/null &
             last=$t0; still=0; i=0;
             while [ $i -lt 1200 ]; do sleep 0.25; i=$((i+1)); t=$(tx);
@@ -221,8 +222,8 @@ script:
           entity_id: media_player.kiosk
         data:
           # A print still waiting on the printer (stalled job) owns the port: report it, don't
-          # query. Otherwise flush stale replies, send buzzer-off (if the beeper is off) and the
-          # four status queries, and read the four reply bytes.
+          # query. Otherwise flush stale replies, send the four status queries and read the four
+          # reply bytes.
           command: >-
             S=/dev/ttyS1; T=/data/local/tmp;
             if [ -f $T/prn.pid ] && grep -q job.bin /proc/$(cat $T/prn.pid)/cmdline 2>/dev/null;
@@ -230,7 +231,7 @@ script:
             busybox stty -F $S 115200 raw -echo crtscts;
             timeout 0.1 cat $S > /dev/null 2>&1;
             (timeout 0.3 cat $S | od -An -tx1 > $T/prn_st) & sleep 0.1;
-            (printf '{{ "\\037\\033\\037\\120\\102" if is_state("input_boolean.kiosk_printer_beeper", "off") else "" }}\020\004\001\020\004\002\020\004\003\020\004\004'
+            (printf '\020\004\001\020\004\002\020\004\003\020\004\004'
             > $S 2> /dev/null &); wait; echo "PRN $(cat $T/prn_st)"
         response_variable: adb
         continue_on_error: true
@@ -453,8 +454,8 @@ script:
           command: "busybox printf '\\033d\\003\\035VB\\000' > /dev/ttyS1"
 
   # Printer alarm buzzer off (no paper / lid open). Citaq command 1F 1B 1F 50 42.
-  # Lasts until the printer's next reset (every print job starts with one), so for "always off"
-  # leave input_boolean.kiosk_printer_beeper off instead: the print scripts then re-send this.
+  # Lasts until the printer is reset or powered off. For "always off", leave
+  # input_boolean.kiosk_printer_beeper off: it's re-applied whenever the terminal comes back.
   kiosk_buzzer_off:
     alias: Kiosk printer buzzer off
     sequence:

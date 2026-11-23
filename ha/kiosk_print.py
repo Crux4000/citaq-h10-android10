@@ -12,8 +12,6 @@ Usage:
   kiosk_print.py qr    <base64 text>  [--qrsize 1-16] [--align ...] [--cut on|off]
   kiosk_print.py list                  (prints JSON list of images in /media/kiosk)
 
---beeper off (the default) keeps the printer's alarm buzzer (no paper / lid open) silent.
-
 --flip on (the default) prints upside down, so the receipt reads the right way up from the
 front of the Citaq H10-3 (paper comes out towards you, top edge first). Text uses the printer's
 upside-down mode (ESC { 1) with the lines sent in reverse order; images are rotated 180 degrees;
@@ -38,13 +36,13 @@ MAX_HEIGHT = 2400        # safety cap (~30 cm of paper)
 BAND = 128               # image rows per GS v 0 block (keeps printer buffer happy)
 
 ESC, GS = b"\x1b", b"\x1d"
-INIT = ESC + b"@"
+# Start of every job: put the text formatting back to normal (bold, size, upside-down, underline,
+# alignment) without a full printer reset (ESC @). A reset in every job turned the alarm buzzer
+# back on and made the printer pause and beep between the parts of a multi-part receipt.
+INIT = ESC + b"E\x00" + GS + b"!\x00" + ESC + b"{\x00" + ESC + b"-\x00" + ESC + b"a\x00"
 ALIGN = {"left": 0, "centre": 1, "center": 1, "right": 2}
 SIZE = {"normal": 0x00, "tall": 0x01, "wide": 0x10, "big": 0x11}
 FEED_AND_CUT = ESC + b"d\x04" + GS + b"VB\x00"
-# Citaq printer command: alarm buzzer off. Every job starts with INIT (ESC @), and that reset turns
-# the buzzer back on, so with --beeper off it is re-sent right after INIT in every job.
-BUZZER_OFF = b"\x1f\x1b\x1f\x50\x42"
 
 
 def b64(s):
@@ -158,7 +156,7 @@ def main():
     p.add_argument("--cut", default="on")
     p.add_argument("--qrsize", type=int, default=8)
     p.add_argument("--flip", default="on")
-    p.add_argument("--beeper", default="off")
+    p.add_argument("--beeper", default="off")   # accepted for older kiosk.yaml; no longer used
     a = p.parse_args()
 
     if a.mode == "list":
@@ -172,8 +170,6 @@ def main():
         job = build_image(payload.strip(), a.align, a.flip == "on")
     else:
         job = build_qr(payload, a.qrsize, a.align)
-    if a.beeper == "off" and job.startswith(INIT):
-        job = INIT + BUZZER_OFF + job[len(INIT):]
     if a.cut == "on":
         job += FEED_AND_CUT
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
