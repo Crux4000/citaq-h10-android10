@@ -47,6 +47,8 @@ at $P AT+CREG? 3               # 2G/3G registration state
 at $P AT+CEREG? 3              # LTE registration state
 at $P AT+COPS? 3               # current operator
 at $P 'AT+GTUSBMODE?' 3        # Fibocom USB mode (which interfaces)
+at $P 'AT^SYSINFOEX' 3         # Huawei: SIM state (4th field: 1 = valid, 255 = none) and network mode
+at $P 'AT^HCSQ?' 3             # Huawei: LTE signal, works without a SIM (Fibocom answers ERROR to both)
 echo "== network scan (can take up to 3 minutes)"
 at $P 'AT+COPS=?' 180          # visible operators, works without a SIM on most modules
 echo "RESULT: done (AT port $P)"

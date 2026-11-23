@@ -104,7 +104,8 @@ answered AT on **`ttyUSB2`**, same as the Fibocom:
 | `AT+CFUN?` | `1` (radio fully on) |
 | `AT+CPIN?`, `AT+CSQ`, `AT+CREG?`, `AT+COPS?` | `+CME ERROR: 10` (SIM not inserted) |
 | `AT+CEREG?` | `0,2` (not registered, searching) |
-| `AT+COPS=?` | `+CME ERROR: 10`: unlike the Fibocom, the ME909s won't scan for networks or report signal without a SIM, so the antenna can only be checked with one in |
+| `AT+COPS=?` | `+CME ERROR: 10`: unlike the Fibocom, the ME909s won't scan for networks without a SIM |
+| unprompted (`^HCSQ`, `^RSSI`) | `^HCSQ: "LTE",42,30,86,16` and `^RSSI: 17`: it hears LTE at about −79 dBm (RSRP about −111 dBm), so the antenna works. `at-probe.sh` now also asks for this with `AT^HCSQ?`, plus the SIM state with `AT^SYSINFOEX` |
 
 For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
 mobile data on the ME909s is untested and may need a different route. If you have one, please run
