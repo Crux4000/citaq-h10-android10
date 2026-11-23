@@ -135,15 +135,17 @@ script:
               title: Kiosk print failed
               message: "{{ build.stderr if build is defined else 'build step failed - check the logs' }}"
           - stop: Print job failed
-      # Ask the printer first. On a problem (no paper, lid open, ...) nothing is sent, the alert
-      # goes up, and the script stops with an error, so a multi-part receipt stops too.
+      # Ask the printer first. On a problem (no paper, lid open, ...) nothing is sent and the alert
+      # goes up. HA doesn't pass this stop on to a script that called kiosk_job, so a multi-part
+      # receipt should call script.kiosk_printer_check itself first (see docs/HOME-ASSISTANT.md).
+      # Afterwards input_text.kiosk_printer_status says "ok" or what went wrong.
       - action: script.kiosk_printer_check
         response_variable: prn
       - if:
           - condition: template
             value_template: "{{ not prn.ok }}"
         then:
-          - stop: "Printer: {{ prn.problem }}"
+          - stop: Printer not ready, nothing printed
             error: true
       - action: androidtv.upload
         target:
@@ -189,7 +191,7 @@ script:
           - action: script.kiosk_printer_alert
             data:
               problem: "stuck mid-print (check the paper and lid)"
-          - stop: "Printer stopped mid-print"
+          - stop: Printer stopped mid-print
             error: true
         else:
           - action: script.kiosk_printer_alert
@@ -584,6 +586,23 @@ automation:
             {{ "printf '\\037\\033\\037\\120\\102' > /dev/ttyS1"
                if is_state('input_boolean.kiosk_printer_beeper', 'off')
                else "printf '\\033@' > /dev/ttyS1" }}
+
+  # While the printer has a problem, look again every 30 s, so the alert (LED, pop-up,
+  # notification) clears by itself once the paper is loaded or the lid is shut.
+  - id: kiosk_printer_recheck
+    alias: Kiosk printer recheck while in error
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        seconds: "/30"
+    conditions:
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: input_text.kiosk_printer_status
+            state: ["ok", "paper running low", "", "unknown", "unavailable"]
+    actions:
+      - action: script.kiosk_printer_check
 
   - id: kiosk_refresh_images_on_start
     alias: Kiosk refresh image list on start
