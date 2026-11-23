@@ -509,6 +509,7 @@ script:
             echo {{ a2 }} > {{ R }}; echo {{ b2 }} > {{ B }}; sleep {{ sec }};
             i=\$((i+1)); done; echo 0 > {{ R }}; echo 0 > {{ B }}; rm -f {{ P }}"
             > /dev/null 2>&1 < /dev/null &
+            w=0; while [ ! -f {{ P }} ] && [ $w -lt 20 ]; do sleep 0.05; w=$((w+1)); done
             {%- elif pat == 'solid' %}
             echo {{ r }} > {{ R }}; echo {{ b }} > {{ B }}
             {%- else %}
