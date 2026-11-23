@@ -92,13 +92,24 @@ Citaq fits different modules to the same board. So far:
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
 | Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
-| Huawei ME909s-120 | unit 3 | **untested** |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up, AT commands (unit 2); **untested with a SIM** |
 
-The ME909s sits in the same mini PCIe slot, so the boot hook should power it the same way. The kernel's
-`option` driver normally picks up Huawei's AT ports, and it also has `cdc_ether`, `cdc_ncm` and `cdc_mbim`
-for data (but not Huawei's own `huawei_cdc_ncm`). Its AT port may not be `ttyUSB2`; `at-probe.sh` tries
-each port in turn. If you have one, please run `at-probe.sh` and open an issue with the log. The script
-hides the IMEI and other long numbers, but check the log before posting anyway.
+The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
+[#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and
+answered AT on **`ttyUSB2`**, same as the Fibocom:
+
+| Command | Result (no SIM) |
+|---|---|
+| `ATI` | Huawei Technologies Co., Ltd., ME909s-120 V2, revision `11.617.24.00.00` |
+| `AT+CFUN?` | `1` (radio fully on) |
+| `AT+CPIN?`, `AT+CSQ`, `AT+CREG?`, `AT+COPS?` | `+CME ERROR: 10` (SIM not inserted) |
+| `AT+CEREG?` | `0,2` (not registered, searching) |
+
+For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
+mobile data on the ME909s is untested and may need a different route. If you have one, please run
+`at-probe.sh` and open an issue with the log. The script shows the IMEI and other long numbers as
+`[hidden]`, but check the log before posting anyway, and paste it inside a ```` ``` ```` code block so GitHub
+keeps the layout.
 
 After boot, `/data/citaq/modem.log` shows which modem came up (its USB ID) and which `ttyUSB` ports it
 made: `1508:1001` is the Fibocom, `12d1:xxxx` a Huawei. If a modem causes any trouble (for example an

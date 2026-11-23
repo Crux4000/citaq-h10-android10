@@ -17,7 +17,8 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 All three boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and
 units 1 and 2 carry byte-for-byte the same stock device tree. Citaq fits different sound, Wi-Fi/Bluetooth,
 eMMC and 4G modem chips to boards that look identical, and mixes them independently: unit 3 has unit 1's
-sound chip and unit 2's Wi-Fi module. The port detects or supports both sound chips and both Wi-Fi modules.
+sound chip and unit 2's Wi-Fi module and 4G modem. The port detects or supports both sound chips and both
+Wi-Fi modules, and both modems power up and answer AT commands.
 
 ### 1: Citaq H10-3, ex-Menulog / Just Eat
 
@@ -45,6 +46,8 @@ sound chip and unit 2's Wi-Fi module. The port detects or supports both sound ch
   chip ran overnight without a crash, and the boot hook now uses it (22 Nov 2026).
   **Open:** after a soft reboot, Wi-Fi doesn't come back. A full power-off and on fixes it. The cause is
   found and a fix is being tested in [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4).
+- **4G modem:** **Huawei ME909s-120** (revision `11.617.24.00.00`), like unit 3. On Android 10 it powers
+  up and answers AT commands on `ttyUSB2` (23 Nov 2026, no SIM). See [MODEM.md](MODEM.md#other-modems).
 - **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a
   hardware fault, not the port.
 
@@ -57,7 +60,7 @@ sound chip and unit 2's Wi-Fi module. The port detects or supports both sound ch
   `syr82x/0-0040`. This is the first stock 5.1 output from a second terminal, and it confirms the touch
   controller shows up as `2-0041`.
 - **Sound:** RT5651, like unit 1. **Wi-Fi/BT:** AP6255 module, like unit 2 (from a photo).
-- **4G modem:** **Huawei ME909s-120**, not the Fibocom NL668 on unit 1. Untested on Android 10, see
+- **4G modem:** **Huawei ME909s-120**, like unit 2 (not the Fibocom NL668 on unit 1). See
   [MODEM.md](MODEM.md#other-modems).
 - **Result:** not installed yet. The owner reports Wi-Fi crashes on stock 5.1.
 

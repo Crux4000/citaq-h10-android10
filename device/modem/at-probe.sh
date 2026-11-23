@@ -1,7 +1,8 @@
 #!/system/bin/sh
 # Citaq H10-3: talk to the 4G modem over AT commands (no SIM needed).
 # Written for the Fibocom NL668; other modules (e.g. Huawei ME909s) answer ERROR to the Fibocom-only queries.
-# Long digit runs (IMEI, IMSI, ICCID) are hidden in the log. Still check it before posting it publicly.
+# Long digit runs (IMEI, IMSI, ICCID) show as [hidden] in the log. Still check it before posting it publicly.
+# On GitHub, paste the log inside a ``` code block so the layout survives.
 # The boot hook (device/citaq-boot.sh, 3b) powers the modem. Run as root:  su 0 sh /data/local/tmp/at-probe.sh
 # Log: /data/local/tmp/at-probe.log
 L=/data/local/tmp/at-probe.log
@@ -20,7 +21,7 @@ at() {  # at <port> <command> <seconds to wait>
   done
   kill $C 2>/dev/null; wait $C 2>/dev/null
   echo ">> $2  (${w}s)"
-  tr -d '\r' < $T | grep -v -i -e '^$' -e "^$2\$" | sed -E -e 's/[0-9]{14,20}/<hidden>/g' -e 's/^/   /'
+  tr -d '\r' < $T | grep -v -i -e '^$' -e "^$2\$" | sed -E -e 's/[0-9]{14,20}/[hidden]/g' -e 's/^/   /'
 }
 
 echo "== $(date) AT probe"
