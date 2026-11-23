@@ -168,6 +168,24 @@ mount -o bind /data/citaq/bcmdhd.ko /vendor/lib/modules/bcmdhd.ko
 #     detection and changes nothing on them.
 F=/vendor/etc/firmware
 [ -f $F/fw_cyw43455.bin ] && [ -f $F/fw_bcm43455c0_ag.bin ] && mount -o bind $F/fw_cyw43455.bin $F/fw_bcm43455c0_ag.bin
+# 1c) Soft reboot. Nothing power-cycles the Wi-Fi chip on a reboot (no WL_REG_ON GPIO; the SDIO power sequence only
+#     runs when the host starts), so it keeps running its firmware, and on an AP6255 the next boot can't reset it
+#     ("Error resetting SDIO communications (-2)"): no Wi-Fi until a full power-off. Taking wlan0 down first stops
+#     the firmware, and the next boot is clean (issue #4, 23 Nov 2026: worked every time).
+#     This watcher does that as soon as sys.powerctl is set, which covers every reboot or shutdown (Android menu,
+#     `adb reboot`, `reboot`). This ROM has ro.build.shutdown_timeout=0, so init SIGKILLs this service at once,
+#     with no SIGTERM to hook: the watcher moves to its own session and out of the service's cgroup so it survives
+#     that kill and acts while init is still stopping vold and unmounting. The Android Wi-Fi setting isn't touched.
+#     Harmless on AP6256 terminals. Each run is logged to /data/citaq/wifi-reboot.log.
+setsid sh -c '
+  W=/dev/citaq-wifi-watch
+  [ -f $W ] && kill -0 "$(cat $W)" 2>/dev/null && exit 0
+  echo $$ > $W
+  echo $$ > /acct/cgroup.procs
+  while [ -z "$(getprop sys.powerctl)" ]; do sleep 0.2; done
+  ip link set wlan0 down
+  echo "$(date) $(getprop sys.powerctl): wlan0 down" >> /data/citaq/wifi-reboot.log
+' > /dev/null 2>&1 < /dev/null &
 # 2) Sound: open the codec's playback path. RT5651: DAC -> line out + headphone out. ES8316: DAC -> headphone
 #    mixer -> headphone out (it has no line out). On both the speaker amp hangs off the headphone output and the
 #    amp pin is driven by 3c below.
