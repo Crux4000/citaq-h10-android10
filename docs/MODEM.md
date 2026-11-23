@@ -61,7 +61,13 @@ What it showed on the test terminal, **without a SIM**:
 | `AT+CREG?` / `AT+CEREG?` | `0,0` (not registered, as expected without a SIM) |
 | `AT+COPS=?` | Optus AU 50502, Telstra Mobile 50501, vodafone AU 50503, all LTE |
 
-## Not tested yet (needs a SIM)
+**With a SIM** (23 Nov 2026, an old SIM that came in the terminal, probably no longer active): the board's
+SIM slot works on Android 10. `AT+CPIN?` gave `READY`, and the network scan marked Optus as available and
+Telstra and Vodafone as forbidden, so the modem read the SIM's home network. It stayed at `+CEREG: 0,2`
+(searching) and never registered, as expected for a cancelled SIM. Registration, SMS and data still need an
+active SIM.
+
+## Not tested yet (needs an active SIM)
 
 With a SIM in, these are the things to try. Please report back either way.
 
