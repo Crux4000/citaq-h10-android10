@@ -60,7 +60,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Wi-Fi (AP6256 or AP6255, 2.4 + 5 GHz) | ✅ | rebuilt `bcmdhd.ko`; AP6255 uses Cypress firmware (see [docs/WIFI.md](docs/WIFI.md)) |
 | Bluetooth (BCM4345C5 / BCM4345C0) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |
 | Ethernet (RTL8152) | ✅ | |
-| 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers; **untested with a SIM**. Some units have a Huawei ME909s instead (reads the SIM and registers on LTE; SMS and data untested). See [docs/MODEM.md](docs/MODEM.md) |
+| 4G modem (Fibocom NL668) | ⚠️ | powers up, AT commands, sees all carriers, reads a SIM; **not yet tried with an active SIM**. Some units have a Huawei ME909s instead (reads the SIM and registers on LTE; SMS and data untested). See [docs/MODEM.md](docs/MODEM.md) |
 | Sound (RT5651 or ES8316 + speaker amp) | ✅ | the boot hook detects which codec is fitted; Android volume works through `volshim`. Detection confirmed on both: RT5651 on the reference terminal (22 Nov 2026), ES8316 on a second terminal (21 Nov 2026); the ES8316 volume slider fix is awaiting a test |
 | Headphone jack | ✅ | built-in speakers mute while something is plugged in |
 | Brightness slider | ✅ | through `blshim` |
