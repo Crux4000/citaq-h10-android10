@@ -73,20 +73,23 @@ With a SIM in, these are the things to try. Please report back either way.
 
 1. **Registration:** `AT+CPIN?` should say `READY`, `AT+CEREG?` should end in `,1` (home) or `,5` (roaming),
    and `AT+COPS?` should name the carrier.
-2. **SMS** (text mode):
+2. **SMS** (text mode). `device/modem/sms-test.sh` sends one message (not yet tried on a terminal); send it
+   to your own phone:
+   ```sh
+   adb push device/modem/sms-test.sh /data/local/tmp/
+   adb shell "su 0 sh /data/local/tmp/sms-test.sh +61400000000 'Test from the Citaq'"
    ```
-   AT+CMGF=1
-   AT+CMGS="+61400000000"
-   > test message      (end with Ctrl-Z, byte 0x1A)
-   ```
+   It ends with `RESULT: sent` when the modem answers `+CMGS`. By hand it's `AT+CMGF=1`, then
+   `AT+CMGS="+61400000000"`, then the text at the `>` prompt, ended with Ctrl-Z (byte 0x1A).
    Useful as a backup alert path for Home Assistant when Wi-Fi or the internet is down.
 3. **Data** over QMI on `wwan0`, for example with `qmicli`/`uqmi`-style tools (not on the device yet) or the
    modem's own dial-up commands. Untested. Note that the kernel registers `cdc-wdm0`, but Android's ueventd
    doesn't create `/dev/cdc-wdm0`, so QMI tools would first need the node made by hand (`mknod`, major/minor
    from `/sys/class/usbmisc/cdc-wdm0/dev`).
 
-**Android's own mobile data and SMS apps don't use the modem (yet).** That needs a RIL (radio interface layer)
-that knows the NL668. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit. The PX5 ROM reports
+**Android's own mobile data and SMS apps don't use the modem (yet),** which is why Settings → Mobile network
+is greyed out even when the modem has registered. That needs a RIL (radio interface layer) that knows the
+modem. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit. The PX5 ROM reports
 `gsm.version.ril-impl = RIL_RK_DATA_V10.0`, Rockchip's generic RIL for USB 3G/4G dongles, but its daemon isn't
 running, and whether it supports the NL668 is unknown. That's a possible route to Android-level mobile data for
 anyone with a SIM to test. Talking to the modem directly over AT/QMI is the practical route for now.
@@ -98,7 +101,7 @@ Citaq fits different modules to the same board. So far:
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
 | Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
-| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up, AT commands, reads the SIM (unit 2); **not yet registered on a network** |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up, AT commands, reads the SIM and **registers on LTE** (unit 2); SMS and data untested |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
 [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and
@@ -116,8 +119,12 @@ answered AT on **`ttyUSB2`**, same as the Fibocom:
 With a SIM in (23 Nov 2026), after a full power-off and reseating the SIM in its adaptor: `AT+CPIN?` gave
 `READY`, so the ME909s reads SIMs through the board's slot. The scan found Optus (available) and Vodafone
 (forbidden), but with no antennas fitted the signal came and went (`+CSQ: 16`, then `^RSSI: 99`) and it didn't
-register (`+CEREG: 0,2`, `^SRVST: 0`). It needs antennas, and an active SIM, before registration, SMS or data
-can be tested.
+register (`+CEREG: 0,2`, `^SRVST: 0`); that SIM turned out to be inactive.
+
+With an **active SIM** (Kogan Mobile, still no antennas): it **registered on LTE**. `+CREG: 0,1`, `+CEREG: 0,1`
+(home network), `+COPS: 0,0,"KOGAN",7`, `+CSQ: 12` (about −89 dBm). The scan showed Kogan (50503) as the
+current network, Optus as available and Telstra as forbidden. This is the first modem to register on a network
+on the Android 10 port. SMS and data are next.
 
 For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
 mobile data on the ME909s is untested and may need a different route. If you have one, please run

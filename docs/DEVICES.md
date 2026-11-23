@@ -48,8 +48,8 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   now takes `wlan0` down before every reboot (step 1c), and Wi-Fi came back on every reboot in testing
   ([#4](https://github.com/Crux4000/citaq-h10-android10/issues/4), [#5](https://github.com/Crux4000/citaq-h10-android10/pull/5)).
 - **4G modem:** **Huawei ME909s-120** (revision `11.617.24.00.00`), like unit 3. On Android 10 it powers
-  up, answers AT commands on `ttyUSB2` and reads the SIM (23 Nov 2026). Its antennas have been removed, so
-  it hasn't registered on a network yet. See [MODEM.md](MODEM.md#other-modems).
+  up, answers AT commands on `ttyUSB2`, reads the SIM and registers on LTE with an active SIM, even with
+  its antennas removed (23 Nov 2026). SMS and data untested. See [MODEM.md](MODEM.md#other-modems).
 - **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a
   hardware fault, not the port.
 
