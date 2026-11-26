@@ -1,8 +1,10 @@
 # 4G modem (Fibocom NL668-EAU)
 
-> **Status: hardware works, not tested with a SIM.** The modem powers up, its drivers load, it answers AT
-> commands, has a good signal and can see all three Australian carriers. Registering on a network, SMS and
-> mobile data have **not** been tried yet, because the test terminal has no SIM.
+> **Status: hardware works, not tested with an active SIM.** The modem powers up, its drivers load, it answers
+> AT commands, has a good signal and can see all three Australian carriers. Registering on a network, SMS and
+> mobile data have **not** been tried yet on the NL668, because the test terminal has no active SIM. The
+> Huawei ME909s fitted to some terminals has registered on LTE and **sent an SMS** (see
+> [Other modems](#other-modems)).
 > **If you try it, please open an issue or comment on this repo and say what worked or what failed** (with your
 > carrier and the output of `device/modem/at-probe.sh`). That's how this gets from "should work" to "works".
 
@@ -73,7 +75,7 @@ With a SIM in, these are the things to try. Please report back either way.
 
 1. **Registration:** `AT+CPIN?` should say `READY`, `AT+CEREG?` should end in `,1` (home) or `,5` (roaming),
    and `AT+COPS?` should name the carrier.
-2. **SMS** (text mode). `device/modem/sms-test.sh` sends one message (not yet tried on a terminal); send it
+2. **SMS** (text mode). `device/modem/sms-test.sh` sends one message (works on a Huawei ME909s, not yet tried on the NL668); send it
    to your own phone:
    ```sh
    adb push device/modem/sms-test.sh /data/local/tmp/
@@ -101,7 +103,7 @@ Citaq fits different modules to the same board. So far:
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
 | Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
-| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM and **registers on LTE** (unit 2); SMS and data untested |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE** and **sends SMS** (unit 2); receiving SMS and data untested |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
 [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and
@@ -127,7 +129,11 @@ Unit 3 (23 Nov 2026, no SIM) gave the same results on `ttyUSB2` with an older fi
 With an **active SIM** (Kogan Mobile, still no antennas): it **registered on LTE**. `+CREG: 0,1`, `+CEREG: 0,1`
 (home network), `+COPS: 0,0,"KOGAN",7`, `+CSQ: 12` (about −89 dBm). The scan showed Kogan (50503) as the
 current network, Optus as available and Telstra as forbidden. This is the first modem to register on a network
-on the Android 10 port. SMS and data are next.
+on the Android 10 port.
+
+**SMS works** (23 Nov 2026, same SIM): `sms-test.sh` got `+CMGS: 162` back (`RESULT: sent`) and the text
+arrived on the phone. Since then the reporter has run it on Wi-Fi antennas salvaged from other hardware, which
+work well enough for an SMS bridge to Home Assistant. Receiving SMS and mobile data are untested.
 
 For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
 mobile data on the ME909s is untested and may need a different route. If you have one, please run
