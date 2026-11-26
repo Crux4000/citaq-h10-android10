@@ -36,8 +36,9 @@ The PX5 kernel already has both drivers:
 USB ID `1508:1001` ("Fibocom Wireless Inc. / Fibocom Modem"). `AT+GTUSBMODE?` reports `17`.
 
 Checked after a reboot with the boot hook: the four `ttyUSB` ports appear (owner `radio`, mode 666), `wwan0`
-exists (down, as expected without a SIM), and **nothing else holds the ports**: the ROM's `rild` isn't running,
-so it doesn't fight scripts over the AT port. Bluetooth (which shares nothing with the modem) is unaffected.
+exists (down, as expected without a SIM), and **nothing else holds the ports**. The ROM's `rild` does run, but
+it doesn't recognise the NL668 (see [Mobile data](#mobile-data)), so it never opens the ports and doesn't fight
+scripts over the AT port. Bluetooth (which shares nothing with the modem) is unaffected.
 
 One gotcha: these serial ports come up with `iuclc` set, so replies arrive in lowercase (`ok`) and scripts
 looking for `OK` miss them. The boot hook sets the ports raw without case mapping, and world-writable like the
@@ -92,9 +93,9 @@ With a SIM in, these are the things to try. Please report back either way.
 **Android's own mobile data and SMS apps don't use the modem (yet),** which is why Settings → Mobile network
 is greyed out even when the modem has registered. That needs a RIL (radio interface layer) that knows the
 modem. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit. The PX5 ROM reports
-`gsm.version.ril-impl = RIL_RK_DATA_V10.0`, Rockchip's generic RIL for USB 3G/4G dongles, but its daemon isn't
-running, and whether it supports the NL668 is unknown. That's a possible route to Android-level mobile data for
-anyone with a SIM to test. Talking to the modem directly over AT/QMI is the practical route for now.
+`gsm.version.ril-impl = RIL_RK_DATA_V10.0`, Rockchip's generic RIL for USB 3G/4G dongles. It runs, but it
+only drives modems in its built-in list, and the NL668 isn't one of them (the Huawei ME909s is; see
+[Mobile data](#mobile-data)). Talking to the modem directly over AT/QMI is the practical route for now.
 
 ## Mobile data
 
@@ -109,13 +110,29 @@ Not working yet on either modem; this is the plan and what's still unknown. Two 
      with `AT^SETPORT`. Check Huawei's AT manual before changing ports: a wrong setting can hide the AT port.
 2. **Android using it.** Android 10 sends each app's traffic over networks its connectivity service knows
    about, so a link brought up by hand mostly isn't used by apps (root shell tools do use it). The proper
-   fix is a running RIL: the PX5 image carries Rockchip's generic USB-dongle RIL (`RIL_RK_DATA_V10.0`), but
-   `rild` isn't started. If it supports the modem, Settings → Mobile network would work normally.
+   fix is a RIL that drives the modem. See below: one is already running.
+
+**What the ROM already has** (checked on the reference terminal, 26 Nov 2026):
+
+- `rild` runs at boot (`vendor.ril-daemon`) with Rockchip's dongle RIL, `/vendor/lib64/libril-rk29-dataonly.so`
+  (data only, no calls or SMS). Every 3 seconds it reads the modem's USB ID and looks it up in a built-in list
+  of supported modems. If it finds a match it takes an AT port and dials **PPP** with `/etc/ppp/call-pppd`
+  (`pppd`, `chat` and the `ip-up`/`ip-down` scripts are all in the image), and Android treats that as mobile
+  data.
+- **Fibocom NL668 (`1508:1001`): not in the list.** The radio log repeats `tty Device id is: 1508/1001`,
+  `match model count=0`, `Not support modem!!!!`, so Settings → Mobile network stays greyed out.
+- **Huawei ME909s: in the list** (`HUAWEI lte ME909S`, also the `MU709` found in Citaq V8 terminals). So
+  terminals with an ME909s may get Android mobile data from the stock RIL as it is, maybe needing only an APN
+  in Settings. Not tried yet: this is the thing to test next with an active SIM.
+- Also in the image: `libril-ec20.so` (Quectel's QMI RIL for the EC20, which uses the same Qualcomm platform as
+  the NL668) and AOSP's `libreference-ril.so`. Possible routes for the NL668 later: add it to the RK RIL's list
+  (a byte patch to the library), or adapt the Quectel RIL.
 
 **To help, run `device/modem/modem-data-probe.sh`** and post the log in an issue. It's read-only (it only
 reads system files and sends AT queries; no dialling or mode changes) and works with or without a SIM. It
 lists the modem's USB interfaces and their drivers, the dial-up and RIL pieces present in the image, the RIL
-properties and init entries, and the modem's data-related AT settings:
+properties, init entries and recent RIL log (whether it recognised the modem), and the modem's data-related
+AT settings:
 
 ```sh
 adb push device/modem/modem-data-probe.sh /data/local/tmp/

@@ -71,6 +71,12 @@ done
 echo "== running radio processes"
 ps -A | grep -i -e ril -e ppp -e qmi -e radio | grep -v grep
 echo "== mobile data setting: $(settings get global mobile_data)  airplane: $(settings get global airplane_mode_on)"
+echo "== PPP scripts"
+ls /etc/ppp 2>&1
+echo "== RIL log (does it recognise the modem?)"
+logcat -b radio -d 2>/dev/null | grep -i -E 'RIL_RK|match|modem|ppp' | tail -25 | cut -c1-200
+echo "== modems the Rockchip RIL knows (Huawei/Fibocom/Quectel entries)"
+strings /vendor/lib64/libril-rk29-dataonly.so 2>/dev/null | grep -i -E 'ME909|MU709|ME906|E3372|fibocom|NL668|quectel|EC2' | sort -u
 
 echo "== AT queries (read-only)"
 P=
