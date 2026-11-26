@@ -198,7 +198,13 @@ NL668 only; the ME909s has no QMI (its fast interface is a CDC Ethernet one, not
 `device/modem/ppp-test.sh` dials PPP on `ttyUSB3`, pings out through that link only, then hangs up. Wi-Fi,
 Ethernet and Android's routing are left alone: it adds no default route, sends only traffic bound to `ppp0`
 out of it through a temporary rule, and removes the rule afterwards. Needs a registered SIM with an active data
-context (`AT+CGACT?` shows `1,1`).
+context (`AT+CGACT?` shows `1,1`). It's for terminals **without** the mobile-data option: with
+`/data/citaq/mobile-data` on, the RIL already uses the PPP port, so this fails with "Connect script failed".
+On the ME909s the PPP port is `ttyUSB0` (`PORT=/dev/ttyUSB0`).
+
+If an `adb shell "..."` line with nested quotes gives syntax errors on your PC (fish, the default shell on
+CachyOS, quotes differently from bash), type `adb shell`, then `su`, and run the part inside the quotes
+directly on the terminal.
 
 ```sh
 adb push device/modem/ppp-test.sh /data/local/tmp/
