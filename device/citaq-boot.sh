@@ -363,11 +363,19 @@ fi
 # 4b) Wall kiosk: open the Home Assistant app once Android has finished booting, so the dashboard comes back
 #     by itself after a power cut. (Full or minimal Companion flavour, whichever is installed.)
 ( for i in $(seq 1 180); do [ "$(getprop sys.boot_completed)" = 1 ] && break; sleep 1; done
-  # Screen orientation: the panel is mounted upside down, so Android runs rotated 180 (user_rotation 2) with
-  # auto-rotate off. It's a normal Android setting, but it got lost once after a run of hard power cuts -
-  # re-assert it every boot. (Change the 2 to 0 for the panel's native way up.)
+  # Screen orientation, with auto-rotate off. It's a normal Android setting, but it got lost once after a run
+  # of hard power cuts - re-assert it every boot.
+  #   H10-3: the panel is mounted upside down -> 180 (user_rotation 2), like stock's ro.sf.hwrotation=180.
+  #   V8 (DTB built with PANEL=v8, model "Citaq V8"): landscape panel mounted portrait -> 90 (user_rotation 1),
+  #   like stock's ro.sf.hwrotation=90. Untested: if a V8 comes up upside down, use 3.
+  #   /data/citaq/rotation (one digit: 0 = panel's native way up, 1 = 90, 2 = 180, 3 = 270) overrides both.
+  rot=2
+  case "$(tr -d '\0' 2>/dev/null < /proc/device-tree/model)" in *V8*) rot=1 ;; esac
+  r=$(head -c 1 /data/citaq/rotation 2>/dev/null | tr -dc 0-3)
+  [ -n "$r" ] && rot=$r
+  echo "$(date) user_rotation $rot"
   settings put system accelerometer_rotation 0
-  settings put system user_rotation 2
+  settings put system user_rotation $rot
   # No GPS on the Citaq (its HAL points at a dummy pty, see 00b5): keep the GPS location provider off, or
   # every location request blocks the system foreground thread for 5 s waiting on the dummy port.
   settings put secure location_providers_allowed -gps

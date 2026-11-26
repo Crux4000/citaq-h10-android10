@@ -55,7 +55,7 @@ The full story, including every boot loop and its fix, is in **[docs/PORTING-NOT
 | Feature | Status | Notes |
 |---|---|---|
 | GPU (PowerVR Rogue G6110) | ✅ | GLES 3.1, 200/288/400 MHz DVFS |
-| Display 1024×768 LVDS | ✅ | JEIDA 24-bit; rotated 180° for the assembled case |
+| Display 1024×768 LVDS | ✅ | JEIDA 24-bit; rotated 180° for the assembled case. Citaq V8 (portrait, 6-bit panel): `PANEL=v8` option, untested |
 | Touch (Ilitek ILI2105) | ✅ | userspace driver `ilits` (I2C → uinput), 2 fingers |
 | Wi-Fi (AP6256 or AP6255, 2.4 + 5 GHz) | ✅ | rebuilt `bcmdhd.ko`; AP6255 uses Cypress firmware (see [docs/WIFI.md](docs/WIFI.md)) |
 | Bluetooth (BCM4345C5 / BCM4345C0) | ✅ | speakers, headsets; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md) |

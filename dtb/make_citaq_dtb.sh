@@ -2,12 +2,22 @@
 # Stage 1: convert the PX5 EVB V11 Android 10 DTB (Rockchip 4.19) into a Citaq H10-3
 # (CTE-RK3368-V1.0) DTB. Used on its own for the "first light" kernel test, and as the base
 # for make_citaq_a10_dtb.sh. Usage: make_citaq_dtb.sh px5.dtb citaq-px5.dtb
+# PANEL=v8 (environment) for the Citaq V8's panel, LVDS_BUS_FORMAT to override (see section 6).
 # Needs fdtput (device-tree-compiler package).
 # Principle: change as little hardware state as possible. The vendor U-Boot has already
 # powered and configured everything; the kernel must not reprogram any voltage.
 set -e
 IN=$1; OUT=$2
 [ -n "$IN" ] && [ -n "$OUT" ] || { echo "usage: $0 px5.dtb out.dtb" >&2; exit 1; }
+# Panel (see section 6). Checked before anything is written.
+PANEL=${PANEL:-h10}
+case $PANEL in
+  h10) PCLK=65000000; BUSFMT=0x1012 ;;
+  v8)  PCLK=71000000; BUSFMT=0x1010 ;;
+  *) echo "PANEL must be h10 or v8" >&2; exit 1 ;;
+esac
+BUSFMT=${LVDS_BUS_FORMAT:-$BUSFMT}
+case $BUSFMT in 0x1010|0x1011|0x1012) ;; *) echo "LVDS_BUS_FORMAT must be 0x1010, 0x1011 or 0x1012" >&2; exit 1 ;; esac
 cp "$IN" "$OUT"
 P() { fdtput "$OUT" "$@"; }
 off() { fdtput -ts "$OUT" "$1" status disabled; }
@@ -117,8 +127,12 @@ fdtput -d "$OUT" /vcc18-lcd-n startup-delay-us
 
 # --- 6. Display: Citaq LVDS panel 1024x768, 65 MHz, single channel 8-bit.
 #        Porches from the vendor 3.10 DT. Backlight = pwm0, same as PX5.
+#        PANEL=v8 (environment): the Citaq V8's panel instead - same porches, but 71 MHz and 6-bit
+#        (stock V8 DT: clock-frequency 71000000, out-face 0x21 = D888_P666). Untested on a V8.
+#        LVDS_BUS_FORMAT (environment, hex) overrides the bus format below, for testing.
+#        (PANEL/PCLK/BUSFMT are checked and set at the top of the script.)
 T=/lvds-panel/display-timings/timing0
-P -tu $T clock-frequency 65000000
+P -tu $T clock-frequency $PCLK
 P -tu $T hactive 1024
 P -tu $T vactive 768
 P -tu $T hback-porch 250
@@ -132,6 +146,9 @@ P -ts /lvds-panel rockchip,data-mapping vesa   # NOTE: this 4.19 kernel ignores 
 # (MEDIA_BUS_FMT_*). With none it runs 18-bit -> banding/false colours on this 8-bit panel.
 # 0x1011 (RGB888_1X7X4_SPWG / VESA-24) = the driver default, colours still wrong.
 # 0x1012 = RGB888_1X7X4_JEIDA: correct colours on the Citaq panel (confirmed on hardware).
-P -tx /lvds-panel bus-format 0x1012
+# The V8's panel is 6-bit, where JEIDA would put the wrong bits on its 3 data lanes:
+# 0x1010 = RGB666_1X7X3_SPWG (18-bit, 3 lanes) is the natural fit; 0x1011 (VESA-24 keeps the
+# 6 top bits on the first 3 lanes) is the fallback to try if 0x1010 looks wrong.
+P -tx /lvds-panel bus-format $BUSFMT
 P -ts /lvds-panel compatible simple-panel
-echo "built $OUT"
+echo "built $OUT (panel $PANEL: $((PCLK / 1000000)) MHz, bus-format $BUSFMT)"

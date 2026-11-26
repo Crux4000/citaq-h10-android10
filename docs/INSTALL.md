@@ -92,9 +92,10 @@ p16 is bigger than 2 GB: back up p16's start ÷ 2048 MiB (**2748 MiB** for a sta
 the 1912 MiB in step 2, and on Windows pull it in three pieces.
 
 **`ro.product.model` says `CITAQ V8`?** That's a different model with a portrait screen, built on the
-same board. The 5.1.1 image above is the H10's and the port doesn't drive the V8's screen yet, so don't
-reflash it; see unit 4 in [DEVICES.md](DEVICES.md). The V8's model and screen rotation live only in its
-stock `/system/build.prop`, which a reflash replaces, so `adb pull /system/build.prop` and keep it.
+same board. The same route works: the 5.1.1 image above is the H10's, so stock 5.1.1 will look wrong on
+the V8 (colours, sideways), but it only has to boot far enough for adb, and step 5 has a V8 screen option
+(untested; see unit 4 in [DEVICES.md](DEVICES.md)). The V8's model and screen rotation live only in its
+stock `/system/build.prop`, which the reflash replaces, so `adb pull /system/build.prop` first and keep it.
 
 ## 2. Back up the whole eMMC
 
@@ -154,6 +155,14 @@ COUNTRY=AU sh dtb/make_citaq_a10_dtb.sh px5/px5.dtb citaq-a10.dtb CITAQ012345678
 python3 tools/build_px5_a10.py recovery.img px5/px5_kernel citaq-a10.dtb px5/px5_ramdisk citaq-a10.img
 ```
 `COUNTRY` is your Wi-Fi regulatory country (default `AU`).
+
+**Citaq V8?** (`ro.product.model` said `CITAQ V8` on stock 6.0; its screen is 8" and portrait.) Add
+`PANEL=v8` in front of the `make_citaq_a10_dtb.sh` command. That uses the V8 panel's settings (71 MHz,
+6-bit) and names the board "Citaq V8", so the boot hook (step 10) rotates Android 90° to portrait by
+itself. This is **untested**: please report how it goes in
+[#6](https://github.com/Crux4000/citaq-h10-android10/issues/6). If the picture is fine but the colours
+look wrong (banding, false colours), rebuild with `PANEL=v8 LVDS_BUS_FORMAT=0x1011` and flash again.
+Until step 10 the screen will be sideways; that's expected.
 
 Every terminal so far has **2 GB of RAM**, and the DTB assumes that. Check yours on stock:
 `adb shell grep MemTotal /proc/meminfo` should say about 1,900,000 kB. If it says about 950,000 kB (1 GB),
@@ -267,9 +276,11 @@ Bluetooth is ready too; switch it on from quick settings (if the tile does nothi
 > `adb shell cat /data/citaq/blshim.log` should end in `, inverted)`. See
 > [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4).
 
-> The boot hook rotates the screen 180° (`user_rotation 2`) for the **assembled** case. On the bench
-> the picture will be upside down. Edit the `user_rotation 2` line in `citaq-boot.sh` if you mount it
-> the other way.
+> The boot hook rotates the screen 180° (`user_rotation 2`) for the **assembled** H10 case, and 90°
+> (`user_rotation 1`) on a V8 (DTB built with `PANEL=v8`). On the bench an H10's picture will be upside
+> down. To choose a different rotation, put one digit in `/data/citaq/rotation` (0 = the panel's native
+> way up, 1 = 90°, 2 = 180°, 3 = 270°), for example `adb shell "echo 3 > /data/citaq/rotation"`, then
+> reboot. Touch follows the rotation.
 
 ## 11. Make Android 10 the default boot
 

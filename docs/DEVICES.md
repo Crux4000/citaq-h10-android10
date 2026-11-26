@@ -13,7 +13,7 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 | 1 | Citaq H10-3 (ex-Menulog / Just Eat) | `20220926.JE.H10.5.1.0005` | RT5651 | AP6256 | ✅ Everything in [What works](../README.md#what-works) | @Crux4000 |
 | 2 | Citaq H10-3 (shipped with Android 6.0) | `POS_32-userdebug-20211101.1015` | ES8316 | AP6255 | ✅ Works | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
 | 3 | Citaq H10-3 (ex-Menulog, green pre-rebrand) | `20200303.JE.H10.5.1.0004` | RT5651 | AP6255 | ✅ Installed, running Android 10 | [netguycode/citaq#32](https://github.com/netguycode/citaq/issues/32) |
-| 4 | **Citaq V8** (portrait screen, on Android 6.0.1) | `POS-userdebug-20211130.1225` | RT5651 | AP6256 | ❓ Checks only. Needs V8 screen support and 5.1.1 first | [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6) |
+| 4 | **Citaq V8** (portrait screen, on Android 6.0.1) | `POS-userdebug-20211130.1225` | RT5651 | AP6256 | ❓ Checks only. V8 screen option ready to test (`PANEL=v8`); needs 5.1.1 first | [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6) |
 
 All four boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and
 units 1 and 2 carry byte-for-byte the same stock device tree. Unit 4 is a different model, a Citaq V8,
@@ -97,9 +97,12 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   backlight, battery, keys, modem power) except the screen: the panel runs at 71 MHz instead of 65 MHz
   and is a 6-bit panel (the H10-3's is 8-bit). It is still described as 1024x768 landscape; stock
   Android rotates it 90° in software (`ro.sf.hwrotation=90`, `wm size` 768x1024, density 160).
-- **What the port still needs for the V8:** a screen option in the DTB (71 MHz, 6-bit) and display
-  rotation with matching touch on Android 10. Citaq's 5.1.1 image (the route below) carries the H10's
-  screen settings, so **hold off on reflashing until V8 support is in**. No V8 5.1 image is known.
+- **V8 support (27 Nov 2026, untested):** build the DTB with `PANEL=v8` (71 MHz, 6-bit LVDS, and the
+  board is named "Citaq V8"), and the boot hook then rotates Android 90° by itself; touch follows the
+  rotation. Fallbacks if it's wrong: `/data/citaq/rotation` (`3` if upside down) and
+  `LVDS_BUS_FORMAT=0x1011` if the colours look off. See [INSTALL.md step 5](INSTALL.md#5-build-the-dtb-and-boot-image-linuxwsl).
+  Citaq's 5.1.1 image (the route below) is the H10's, so stock 5.1.1 will look wrong on the V8
+  (colours, sideways); it only has to boot far enough for adb. No V8 5.1 image is known.
   Citaq's Android 6 image carries the V8's screen settings exactly, and H10 panels also run fine on them.
 - **Partition layout:** not the 5.1 one. System is 2 GiB and p16 starts at sector **5,627,904**
   (12,574,720 KB long) instead of 12,443,648, so the install tools stop at their first check. The way

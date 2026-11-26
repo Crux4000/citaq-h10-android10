@@ -8,10 +8,13 @@
 #   RAM_MB   (environment, optional) 2048 (default) or 1024 for a 1 GB terminal (untested).
 #   ADC_KEYS (environment, optional) 1 = up to 6 extra buttons on the RECOVER line (untested; see
 #            docs/HARDWARE.md "Extra buttons on the RECOVER line"). ADC_KEYCODES = their 6 Linux key codes.
+#   PANEL    (environment, optional) h10 (default) or v8 for the Citaq V8's portrait 6-bit panel
+#            (untested). v8 also names the board "Citaq V8" in the DTB, and the boot hook then
+#            rotates Android 90 degrees by itself (/data/citaq/rotation overrides it).
 # Needs fdtput + dtc (device-tree-compiler) and python3. Runs make_citaq_dtb.sh first.
 set -e
 D=$(dirname "$0")
-[ $# -eq 3 ] || { sed -n '2,11p' "$0" >&2; exit 1; }
+[ $# -eq 3 ] || { sed -n '2,14p' "$0" >&2; exit 1; }
 SERIAL=$3
 COUNTRY=${COUNTRY:-AU}
 echo "$SERIAL" | grep -Eq '^[A-Za-z0-9]{6,20}$' || { echo "SERIAL must be 6-20 letters/digits" >&2; exit 1; }
@@ -23,7 +26,10 @@ OUT=$2
 trap 'rm -f "$OUT" "$OUT.dts"; echo "FAILED - no $OUT written" >&2' EXIT
 sh "$D/make_citaq_dtb.sh" "$1" "$2"
 P() { fdtput "$OUT" "$@"; }
-P -ts / model "Citaq H10-3 (PX5 Android 10)"
+case ${PANEL:-h10} in
+  v8) P -ts / model "Citaq V8 (PX5 Android 10)" ;;   # citaq-boot.sh looks for "V8" here
+  *)  P -ts / model "Citaq H10-3 (PX5 Android 10)" ;;
+esac
 
 # Partition map for the 4.19 kernel (CONFIG_CMDLINE_PARTITION). All inside the stock "user"
 # partition (mmcblk0p16 = 6076 MiB .. 14910 MiB on the 16 GB eMMC; Rockchip parameter offsets
