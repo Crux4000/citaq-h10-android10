@@ -3,7 +3,7 @@
 > **Status: hardware works, not tested with an active SIM.** The modem powers up, its drivers load, it answers
 > AT commands, has a good signal and can see all three Australian carriers. Registering on a network, SMS and
 > mobile data have **not** been tried yet on the NL668, because the test terminal has no active SIM. The
-> Huawei ME909s fitted to some terminals has registered on LTE and **sent an SMS** (see
+> Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS** (see
 > [Other modems](#other-modems)).
 > **If you try it, please open an issue or comment on this repo and say what worked or what failed** (with your
 > carrier and the output of `device/modem/at-probe.sh`). That's how this gets from "should work" to "works".
@@ -103,7 +103,7 @@ Citaq fits different modules to the same board. So far:
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
 | Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
-| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE** and **sends SMS** (unit 2); receiving SMS and data untested |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS** (unit 2); mobile data untested |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
 [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and
@@ -133,7 +133,23 @@ on the Android 10 port.
 
 **SMS works** (23 Nov 2026, same SIM): `sms-test.sh` got `+CMGS: 162` back (`RESULT: sent`) and the text
 arrived on the phone. Since then the reporter has run it on Wi-Fi antennas salvaged from other hardware, which
-work well enough for an SMS bridge to Home Assistant. Receiving SMS and mobile data are untested.
+work well enough for an SMS bridge to Home Assistant.
+
+**Receiving works too** (26 Nov 2026): texts sent to the terminal are stored on the modem and listed in text
+mode, so Home Assistant can poll for them over adb:
+
+```
+AT+CMGF=1
+OK
+AT+CMGL="ALL"
++CMGL: 1,"REC READ","+614xxxxxxxx",,"26/11/26,17:01:04+44"
+Test
++CMGL: 2,"REC UNREAD","+614xxxxxxxx",,"26/11/26,17:11:04+44"
+Test
+```
+
+`AT+CMGL="REC UNREAD"` lists only new ones (and marks them read), and `AT+CMGD=<index>` deletes one so the
+SIM's storage doesn't fill up. Mobile data is still untested.
 
 For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
 mobile data on the ME909s is untested and may need a different route. If you have one, please run

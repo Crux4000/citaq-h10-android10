@@ -50,8 +50,8 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   ([#4](https://github.com/Crux4000/citaq-h10-android10/issues/4), [#5](https://github.com/Crux4000/citaq-h10-android10/pull/5)).
 - **4G modem:** **Huawei ME909s-120** (revision `11.617.24.00.00`), like unit 3. On Android 10 it powers
   up, answers AT commands on `ttyUSB2`, reads the SIM and registers on LTE with an active SIM, even with
-  its antennas removed, and **sends SMS** with `sms-test.sh` (text received, 23 Nov 2026). Receiving SMS and
-  data untested. See [MODEM.md](MODEM.md#other-modems).
+  its antennas removed, and **sends SMS** with `sms-test.sh` (text received, 23 Nov 2026) and **receives SMS**
+  (`AT+CMGL`, 26 Nov 2026). Mobile data untested. See [MODEM.md](MODEM.md#other-modems).
 - **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a
   hardware fault, not the port.
 
