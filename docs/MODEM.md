@@ -101,7 +101,7 @@ Citaq fits different modules to the same board. So far:
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
 | Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
-| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up, AT commands, reads the SIM and **registers on LTE** (unit 2); SMS and data untested |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM and **registers on LTE** (unit 2); SMS and data untested |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
 [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and
@@ -120,6 +120,9 @@ With a SIM in (23 Nov 2026), after a full power-off and reseating the SIM in its
 `READY`, so the ME909s reads SIMs through the board's slot. The scan found Optus (available) and Vodafone
 (forbidden), but with no antennas fitted the signal came and went (`+CSQ: 16`, then `^RSSI: 99`) and it didn't
 register (`+CEREG: 0,2`, `^SRVST: 0`); that SIM turned out to be inactive.
+
+Unit 3 (23 Nov 2026, no SIM) gave the same results on `ttyUSB2` with an older firmware revision,
+`11.617.15.00.00`.
 
 With an **active SIM** (Kogan Mobile, still no antennas): it **registered on LTE**. `+CREG: 0,1`, `+CEREG: 0,1`
 (home network), `+COPS: 0,0,"KOGAN",7`, `+CSQ: 12` (about −89 dBm). The scan showed Kogan (50503) as the

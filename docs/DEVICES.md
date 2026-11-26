@@ -12,7 +12,7 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 |---|---|---|---|---|---|---|
 | 1 | Citaq H10-3 (ex-Menulog / Just Eat) | `20220926.JE.H10.5.1.0005` | RT5651 | AP6256 | ✅ Everything in [What works](../README.md#what-works) | @Crux4000 |
 | 2 | Citaq H10-3 (shipped with Android 6.0) | `POS_32-userdebug-20211101.1015` | ES8316 | AP6255 | ✅ Works | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
-| 3 | Citaq H10-3 (ex-Menulog, green pre-rebrand) | `20200303.JE.H10.5.1.0004` | RT5651 | AP6255 | ❓ Checks only, not installed yet | [netguycode/citaq#32](https://github.com/netguycode/citaq/issues/32) |
+| 3 | Citaq H10-3 (ex-Menulog, green pre-rebrand) | `20200303.JE.H10.5.1.0004` | RT5651 | AP6255 | ✅ Installed, running Android 10 | [netguycode/citaq#32](https://github.com/netguycode/citaq/issues/32) |
 | 4 | Citaq H10-3 (ex-Just Eat, on Android 6.0?) | `POS-userdebug-20211130.1225` | RT5651 | ❓ | ❓ Checks only. Different partition layout, needs 5.1.1 first | [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6) |
 
 All four boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and
@@ -65,7 +65,10 @@ Wi-Fi modules, and both modems power up and answer AT commands.
 - **Sound:** RT5651, like unit 1. **Wi-Fi/BT:** AP6255 module, like unit 2 (from a photo).
 - **4G modem:** **Huawei ME909s-120**, like unit 2 (not the Fibocom NL668 on unit 1). See
   [MODEM.md](MODEM.md#other-modems).
-- **Result:** not installed yet. The owner reports Wi-Fi crashes on stock 5.1.
+- **Install:** upgraded to Android 10 (reported 23 Nov 2026). The owner hasn't listed what works yet.
+- **4G modem on Android 10:** answers AT commands on `ttyUSB2`, firmware revision `11.617.15.00.00` (older
+  than unit 2's). No SIM fitted, so the same `+CME ERROR: 10` results as unit 2 without a SIM.
+- **Result:** ✅ installed and running Android 10. On stock 5.1 the owner had Wi-Fi crashes.
 
 ### 4: Citaq H10-3, ex-Just Eat, probably on Android 6.0
 

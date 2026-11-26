@@ -12,8 +12,8 @@ fallback.
 **The story behind it**, with photos (finding the terminal, the boot loops, the fake temperature, the Home
 Assistant side), is on Hackster: [From E-Waste Order Terminal to Home Assistant Kiosk](https://www.hackster.io/crux4000/from-e-waste-order-terminal-to-home-assistant-kiosk-f9618b).
 
-> **Tried it? Please report back, good or bad.** So far this has been done on two terminals (Just Eat's
-> build and Citaq's generic `POS_32` build). The second one's install turned up several bugs, all fixed
+> **Tried it? Please report back, good or bad.** So far this has been done on three terminals (two Just
+> Eat builds and Citaq's generic `POS_32` build). The second one's install turned up several bugs, all fixed
 > now ([#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)).
 > Whether it worked, half-worked or ended in maskrom, a quick
 > **[device report](https://github.com/Crux4000/citaq-h10-android10/issues/new?template=device-report.yml)**
