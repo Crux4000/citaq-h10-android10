@@ -213,7 +213,7 @@ docs/         install, recovery, device list, hardware map, porting notes, Wi-Fi
 ## Warning
 
 This writes to the eMMC of a device that has no official recovery path apart from Rockchip's
-maskrom tools. It has been done on two terminals so far and works on both. The scripts check partition
+maskrom tools. It has been done on three terminals so far and works on all of them. The scripts check partition
 positions and MD5s before writing, and they back up what they replace. Even so, **you do this at your
 own risk**, and you should keep the full eMMC backup somewhere safe.
 
