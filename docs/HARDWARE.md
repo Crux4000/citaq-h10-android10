@@ -122,7 +122,8 @@ The reporter uses them to switch an extra RGB strip through three logic-level MO
 
 ## Extra buttons on the RECOVER line
 
-**Untested on Android 10.** RECOVER (K3) isn't a plain switch: it shorts the SoC's ADC (SARADC channel 1),
+**Works on Android 10** (tested by a tester on unit 2, 26 Nov 2026: all six buttons gave the right key
+presses in `getevent`, and the resistor values aren't critical, near enough is good enough). RECOVER (K3) isn't a plain switch: it shorts the SoC's ADC (SARADC channel 1),
 which has a 10 kΩ pull-up to 1.8 V. Each extra button pulls that line to ground through its own resistor,
 and the ADC tells them apart by voltage. The stock 5.1 device tree reads it as a 6-key ladder:
 
