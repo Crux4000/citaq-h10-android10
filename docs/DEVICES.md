@@ -28,8 +28,9 @@ Wi-Fi modules, and both modems power up and answer AT commands.
 - **Result:** the reference terminal the port was developed on. Everything in
   [What works](../README.md#what-works).
 - **Sound:** RT5651. The boot hook's codec detection picks it and sound plays (22 Nov 2026).
-- **4G modem:** Fibocom NL668-EAU. With an active SIM it registers on LTE, sends SMS and carries data over
-  PPP at the Linux level (26 Nov 2026); receiving SMS unconfirmed (the SIM may be data-only). See [MODEM.md](MODEM.md).
+- **4G modem:** Fibocom NL668-EAU. With an active SIM it registers on LTE, sends SMS and gives Android
+  mobile data through the patched RIL (opt-in `/data/citaq/mobile-data`, 26 Nov 2026); receiving SMS
+  unconfirmed (the SIM may be data-only). See [MODEM.md](MODEM.md).
 
 ### 2: Citaq H10-3, shipped with Android 6.0
 
@@ -53,7 +54,8 @@ Wi-Fi modules, and both modems power up and answer AT commands.
 - **4G modem:** **Huawei ME909s-120** (revision `11.617.24.00.00`), like unit 3. On Android 10 it powers
   up, answers AT commands on `ttyUSB2`, reads the SIM and registers on LTE with an active SIM, even with
   its antennas removed, and **sends SMS** with `sms-test.sh` (text received, 23 Nov 2026) and **receives SMS**
-  (`AT+CMGL`, 26 Nov 2026). Mobile data untested. See [MODEM.md](MODEM.md#other-modems).
+  (`AT+CMGL`, 26 Nov 2026). Mobile data: the stock RIL doesn't recognise it (`12d1:15c1`, data probe
+  26 Nov 2026); the opt-in RIL patch is untested. See [MODEM.md](MODEM.md#other-modems).
 - **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a
   hardware fault, not the port.
 

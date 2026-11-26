@@ -2,9 +2,10 @@
 
 > **Status: registers on LTE, sends SMS, mobile data works at the Linux level.** The modem powers up, its
 > drivers load, it answers AT commands, has a good signal and sees all three Australian carriers. With an
-> active SIM it **registers on LTE, sends SMS and carries data over PPP** (26 Nov 2026). Android itself doesn't
-> use that data link yet, and receiving SMS is unconfirmed (that SIM may be data-only). The Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS** (see
-> [Other modems](#other-modems)).
+> active SIM it **registers on LTE, sends SMS and gives Android mobile data** (opt-in, see
+> [Android mobile data](#android-mobile-data-opt-in), 26 Nov 2026). Receiving SMS is unconfirmed (that SIM may
+> be data-only). The Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS**;
+> its mobile data uses the same opt-in and is waiting for a test (see [Other modems](#other-modems)).
 > **If you try it, please open an issue or comment on this repo and say what worked or what failed** (with your
 > carrier and the output of `device/modem/at-probe.sh`). That's how this gets from "should work" to "works".
 
@@ -96,28 +97,63 @@ The steps below. Please report back either way.
    doesn't create `/dev/cdc-wdm0`, so QMI tools would first need the node made by hand (`mknod`, major/minor
    from `/sys/class/usbmisc/cdc-wdm0/dev`).
 
-**Android's own mobile data and SMS apps don't use the modem (yet),** which is why Settings → Mobile network
-is greyed out even when the modem has registered. That needs a RIL (radio interface layer) that knows the
-modem. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit. The PX5 ROM reports
-`gsm.version.ril-impl = RIL_RK_DATA_V10.0`, Rockchip's generic RIL for USB 3G/4G dongles. It runs, but it
-only drives modems in its built-in list, and the NL668 isn't one of them (the Huawei ME909s is; see
-[Mobile data](#mobile-data)). Talking to the modem directly over AT/QMI is the practical route for now.
+**Android's mobile data needs a RIL** (radio interface layer) that knows the modem; without one, Settings →
+Mobile network is greyed out even when the modem has registered. Stock Citaq's `ril-nl668.so` is for
+Android 5 and 32-bit. The PX5 ROM has `RIL_RK_DATA_V10.0`, Rockchip's generic data-only RIL for USB 3G/4G
+dongles, which only drives modems in its built-in list. Neither the NL668 nor the ME909s is in that list as
+shipped; the boot hook can patch them in (see [Android mobile data](#android-mobile-data-opt-in)). SMS is
+not handled by that RIL at all, so SMS stays on AT commands.
 
 ## Mobile data
 
-Two layers are needed. The first works on the NL668; the second is still to do.
+Two layers are needed, and both now work on the NL668:
 
-1. **A data link in Linux.** Possible routes, easiest first:
+1. **A data link in Linux.** Possible routes:
    - **PPP dial-up** on one of the modem's `ttyUSB` ports (`ATD*99***1#` uses context 1 and its APN). The
      kernel has PPP built in and the image has `pppd` and `chat`. **Works on the NL668** (26 Nov 2026, see
-     [PPP test](#ppp-test) below).
-   - **The modem's fast data interface:** QMI on `wwan0` for the NL668 (driver already binds), or Huawei NCM
-     (`AT^NDISDUP`) for the ME909s, which needs `huawei_cdc_ncm` (not in this kernel; it would be built as a
-     module like `bcmdhd.ko`) unless the modem can be switched to a mode the kernel already has (MBIM, ECM)
-     with `AT^SETPORT`. Check Huawei's AT manual before changing ports: a wrong setting can hide the AT port.
+     [PPP test](#ppp-test) below). Simple and works with almost any modem, but PPP over a USB serial port
+     tops out at roughly 10-20 Mbit/s.
+   - **The modem's fast data interface** (full LTE speed): QMI on `wwan0` for the NL668 (`qmi_wwan` already
+     binds), or the ME909s's own network interface: in its current USB layout it already shows up as a CDC
+     Ethernet `wwan0` (`cdc_ether`), started with Huawei's `AT^NDISDUP` plus DHCP. Neither is wired into
+     Android yet.
 2. **Android using it.** Android 10 sends each app's traffic over networks its connectivity service knows
-   about, so a link brought up by hand mostly isn't used by apps (root shell tools do use it). The proper
-   fix is a RIL that drives the modem. See below: one is already running.
+   about, so a link brought up by hand mostly isn't used by apps (root shell tools do use it). That needs a
+   RIL: see [Android mobile data](#android-mobile-data-opt-in).
+
+### Android mobile data (opt-in)
+
+The ROM's Rockchip RIL dials PPP and hands the link to Android as mobile data, but only for modems in its
+built-in table. The boot hook (section 3b2) can patch our two modems into that table at boot:
+
+```sh
+adb shell "su 0 touch /data/citaq/mobile-data"
+adb reboot
+```
+
+At boot the hook checks the stock library's MD5, copies it to `/data/citaq/ril/`, rewrites two entries for
+modems no H10 ships with (Fibocom NL668 `1508:1001`: AT on `ttyUSB2`, PPP on `ttyUSB3`; Huawei ME909s
+`12d1:15c1`: AT on `ttyUSB2`, PPP on `ttyUSB0`), checks the result's MD5, bind-mounts it over the original and
+restarts `rild`. Nothing on `/vendor` is changed; `/data/citaq/ril/ril.log` says what it did.
+
+After a reboot Settings → Network → Mobile network is no longer greyed out, the status bar shows LTE, and
+Android uses mobile data **only when Wi-Fi/Ethernet are down** (Wi-Fi stays the default). The APN comes from
+the modem's stored context 1 (`AT+CGDCONT?`) or Android's APN settings.
+
+| Modem | Result |
+|---|---|
+| Fibocom NL668-EAU | ✅ works (26 Nov 2026, Vodafone AU): `MOBILE[LTE] CONNECTED` on `ppp0`, pings and DNS fine |
+| Huawei ME909s-120 | ❓ patched in the same way, untested. Please try it and report |
+
+Things to know:
+
+- **SMS scripts and the RIL both want the AT port.** `rild` holds `ttyUSB2` open the whole time, so
+  `at-probe.sh`, `sms-test.sh` and an SMS bridge on that port will clash with it. That's why it's opt-in. To
+  use them, stop the RIL first (`adb shell "su 0 setprop ctl.stop vendor.ril-daemon"`, `ctl.start` to bring
+  it back) or leave mobile data off.
+- **Speed:** PPP, so roughly 10-20 Mbit/s. Fine as a backup link for Home Assistant.
+- **To undo:** `adb shell "su 0 rm /data/citaq/mobile-data"` and reboot. The stock library is back.
+- If `ril.log` says the MD5 differs, your ROM's library isn't the one this was made for; please open an issue.
 
 ### PPP test
 
@@ -146,12 +182,12 @@ when that shell closes and hangs up a second after connecting.
   data.
 - **Fibocom NL668 (`1508:1001`): not in the list.** The radio log repeats `tty Device id is: 1508/1001`,
   `match model count=0`, `Not support modem!!!!`, so Settings → Mobile network stays greyed out.
-- **Huawei ME909s: in the list** (`HUAWEI lte ME909S`, also the `MU709` found in Citaq V8 terminals). So
-  terminals with an ME909s may get Android mobile data from the stock RIL as it is, maybe needing only an APN
-  in Settings. Not tried yet: this is the thing to test next with an active SIM.
+- **Huawei ME909s (`12d1:15c1`): not in the list either.** The name `ME909S` appears in the library's
+  strings, but under a different USB ID; a tester's log showed the same `Not support modem!!!!` for
+  `12D1/15C1`.
+- Both are fixed by the opt-in patch above.
 - Also in the image: `libril-ec20.so` (Quectel's QMI RIL for the EC20, which uses the same Qualcomm platform as
-  the NL668) and AOSP's `libreference-ril.so`. Possible routes for the NL668 later: add it to the RK RIL's list
-  (a byte patch to the library), or adapt the Quectel RIL.
+  the NL668) and AOSP's `libreference-ril.so`.
 
 **To help, run `device/modem/modem-data-probe.sh`** and post the log in an issue. It's read-only (it only
 reads system files and sends AT queries; no dialling or mode changes) and works with or without a SIM. It
@@ -222,9 +258,11 @@ Test
 `AT+CMGL="REC UNREAD"` lists only new ones (and marks them read), and `AT+CMGD=<index>` deletes one so the
 SIM's storage doesn't fill up. Mobile data is still untested.
 
-For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
-mobile data on the ME909s may need a different route (see [Mobile data](#mobile-data)). If you have one,
-please run `at-probe.sh` and `modem-data-probe.sh` and open an issue with the logs. The script shows the IMEI and other long numbers as
+Mobile data: the stock RIL doesn't recognise the ME909s (`12d1:15c1`) as shipped. The opt-in patch in
+[Android mobile data](#android-mobile-data-opt-in) adds it (AT on `ttyUSB2`, PPP on `ttyUSB0`), untested so
+far. In its current USB layout the ME909s also shows a CDC Ethernet `wwan0` (`cdc_ether` binds it), so a
+faster non-PPP route exists too. If you have one, please run `at-probe.sh` and `modem-data-probe.sh` and open
+an issue with the logs. The script shows the IMEI and other long numbers as
 `[hidden]`, but check the log before posting anyway, and paste it inside a ```` ``` ```` code block so GitHub
 keeps the layout.
 

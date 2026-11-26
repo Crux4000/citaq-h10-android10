@@ -258,6 +258,35 @@ if [ ! -f /data/citaq/no-modem ]; then
     echo "$(date) modem $(cat $u/idVendor 2>/dev/null):$(cat $u/idProduct 2>/dev/null) $(cat $u/product 2>/dev/null); ports: $(ls /dev/ttyUSB* 2>/dev/null | tr '\n' ' ')" > /data/citaq/modem.log
   ) &
 fi
+# 3b2) Optional: Android mobile data through the ROM's own RIL (create /data/citaq/mobile-data). The PX5 ROM runs
+#     Rockchip's data-only dongle RIL (/vendor/lib64/libril-rk29-dataonly.so): it reads the modem's USB ID, looks it
+#     up in a built-in table of ~460 USB dongles and, on a match, dials PPP itself (/etc/ppp/call-pppd) so Android
+#     sees a normal mobile network. Neither Citaq modem is in that table. This builds a patched copy from the
+#     terminal's own library (nothing vendor-made is shipped in the repo) with two table entries repurposed, both
+#     with the right ports for the Citaq modems:
+#       0x33988: MW100 19f5:9013 -> Fibocom NL668 1508:1001 (AT /dev/ttyUSB2, PPP /dev/ttyUSB3)  - tested
+#       0x305cc: MU609 12d1:1506 -> Huawei ME909s 12d1:15c1 (AT /dev/ttyUSB2, PPP /dev/ttyUSB0)  - untested
+#     bind-mounts it over the original and restarts rild. Only applied when the library is exactly the known
+#     one (MD5 checked before and after). The RIL then keeps the modem's ttyUSB2 open, so the AT/SMS scripts
+#     (device/modem/) can't use that port while this is on. Delete the file and reboot to undo. See docs/MODEM.md.
+if [ -f /data/citaq/mobile-data ] && [ ! -f /data/citaq/no-modem ]; then
+  V=/vendor/lib64/libril-rk29-dataonly.so; D=/data/citaq/ril; R=$D/libril-rk29-dataonly.so
+  mkdir -p $D
+  if [ "$(md5sum $V | cut -d' ' -f1)" = 999bcc157b1e166cabfba7c996351013 ]; then
+    cp $V $R.tmp
+    printf '\010\025\000\000\001\020\000\000' | dd of=$R.tmp bs=1 seek=$((0x33988)) conv=notrunc 2>/dev/null
+    printf '\301' | dd of=$R.tmp bs=1 seek=$((0x305cc)) conv=notrunc 2>/dev/null
+    if [ "$(md5sum $R.tmp | cut -d' ' -f1)" = 32236cb79332e653189f534fa597d8d1 ]; then
+      mv $R.tmp $R; chmod 644 $R; chcon u:object_r:vendor_file:s0 $R
+      mount -o bind $R $V && setprop ctl.restart vendor.ril-daemon
+      echo "$(date) mobile data: patched RIL mounted, rild restarted" > $D/ril.log
+    else
+      rm -f $R.tmp; echo "$(date) mobile data: patch result has the wrong MD5, not applied" > $D/ril.log
+    fi
+  else
+    echo "$(date) mobile data: $V is not the known PX5 library (MD5 differs), not patched" > $D/ril.log
+  fi
+fi
 # 3c) Headphone jack. The jack and the built-in speaker amp share the codec's headphone output, so the speakers can
 #     only be muted with the amp's enable pin (gpio19, active high), which the DTB takes away from the codec driver.
 #     Jack detect = gpio15 (active low; the DTB turns its pull-up on): 0 = something plugged in.
