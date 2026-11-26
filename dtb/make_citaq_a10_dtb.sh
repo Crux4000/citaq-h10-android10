@@ -6,14 +6,18 @@
 #            without colons. Becomes ro.boot.serialno (and adb's USB serial).
 #   COUNTRY  (environment, optional) Wi-Fi regulatory country, default AU.
 #   RAM_MB   (environment, optional) 2048 (default) or 1024 for a 1 GB terminal (untested).
+#   ADC_KEYS (environment, optional) 1 = up to 6 extra buttons on the RECOVER line (untested; see
+#            docs/HARDWARE.md "Extra buttons on the RECOVER line"). ADC_KEYCODES = their 6 Linux key codes.
 # Needs fdtput + dtc (device-tree-compiler) and python3. Runs make_citaq_dtb.sh first.
 set -e
 D=$(dirname "$0")
-[ $# -eq 3 ] || { sed -n '2,9p' "$0" >&2; exit 1; }
+[ $# -eq 3 ] || { sed -n '2,11p' "$0" >&2; exit 1; }
 SERIAL=$3
 COUNTRY=${COUNTRY:-AU}
 echo "$SERIAL" | grep -Eq '^[A-Za-z0-9]{6,20}$' || { echo "SERIAL must be 6-20 letters/digits" >&2; exit 1; }
 echo "$COUNTRY" | grep -Eq '^[A-Z]{2}$' || { echo "COUNTRY must be a 2-letter code like AU, US, GB" >&2; exit 1; }
+ADC_KEYS=${ADC_KEYS:-0}
+case $ADC_KEYS in 0|1) ;; *) echo "ADC_KEYS must be 0 or 1" >&2; exit 1;; esac
 OUT=$2
 # If any step fails, don't leave a half-built DTB behind that looks finished.
 trap 'rm -f "$OUT" "$OUT.dts"; echo "FAILED - no $OUT written" >&2' EXIT
@@ -250,6 +254,37 @@ P -tx /pinctrl/citaq-hog/jack-det rockchip,pins 0x00 0x0f 0x00 0x8c   # gpio0 B7
 P -tx /pinctrl/citaq-hog/jack-det phandle 0x1f4
 P -ts /pinctrl pinctrl-names default
 P -tx /pinctrl pinctrl-0 0x1f4
+
+# --- Optional (ADC_KEYS=1, untested): extra buttons on the RECOVER line. RECOVER (K3) shorts SARADC channel 1,
+#     which has a 10 k pull-up to 1.8 V, so more buttons can share that line, each pulling it down through its own
+#     resistor to ground (the stock 3.10 DT reads it as a 6-key ladder: 0 / 2k / 5.1k / 8.2k / 12k / 27k). The PX5's
+#     own rockchip-key node stays off (make_citaq_dtb.sh); this adds a mainline adc-keys node instead
+#     (CONFIG_KEYBOARD_ADC=y), matching each reading to the nearest ladder voltage below. The ADC needs a
+#     reference regulator to report volts, so it gets vcc_18 (fixed 1.8 V, phandle 0x57).
+#     Default key codes: VOLUMEUP VOLUMEDOWN MENU CAMERA BACK HOMEPAGE (115 114 139 212 158 172), which Android's
+#     Generic.kl maps to volume up/down, menu, camera, back and home. Override with ADC_KEYCODES="c1 ... c6".
+if [ "$ADC_KEYS" = 1 ]; then
+  set -- ${ADC_KEYCODES:-115 114 139 212 158 172}
+  [ $# -eq 6 ] || { echo "ADC_KEYCODES needs exactly 6 key codes" >&2; exit 1; }
+  P -tx /saradc@ff100000 vref-supply 0x57
+  K=/adc-keys
+  fdtput -c "$OUT" $K
+  P -ts $K compatible adc-keys
+  P -tx $K io-channels 0x97 1                       # saradc (PX5 phandle 0x97), channel 1 = RECOVER line
+  P -ts $K io-channel-names buttons
+  P -tu $K keyup-threshold-microvolt 1800000
+  P -tu $K poll-interval 50
+  n=0
+  for uv in 0 300000 608000 811000 982000 1313000; do # 1.8 V x R / (R + 10k)
+    n=$((n + 1))
+    fdtput -c "$OUT" $K/button$n
+    P -ts $K/button$n label "button$n"
+    P -tu $K/button$n press-threshold-microvolt $uv
+    P -tu $K/button$n linux,code $1
+    shift
+  done
+  echo "ADC_KEYS: RECOVER-line buttons on, key codes ${ADC_KEYCODES:-115 114 139 212 158 172}"
+fi
 
 # The 4.19 MMC core numbers hosts in probe order (no DT aliases), and probe order = DT node
 # order. With SDIO0 enabled before the eMMC node, the Wi-Fi host became mmc0 and the eMMC mmcblk1,

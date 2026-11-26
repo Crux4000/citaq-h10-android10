@@ -35,7 +35,7 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | JP2 | internal micro-USB = dwc2 OTG (`usb@ff580000`) = adb port |
 | CN13 / CN14 / CN18 | internal USB headers on the compute board (CN18 is the rear I/O board's link), see [Spare internal USB ports](#spare-internal-usb-ports) |
 | Debug UART | UART2: **TP17** board TX, **TP18** board RX, **TP19** GND, 3.3 V, 115200 |
-| Buttons | power key gpio0 A2 (active low); RECOVER / RESET on the compute board |
+| Buttons | power key gpio0 A2 (active low); RECOVER / RESET on the compute board. RECOVER is an ADC line that can carry up to 6 more buttons, see [Extra buttons on the RECOVER line](#extra-buttons-on-the-recover-line) |
 | Battery | 1S 3.7 V 1600 mAh LiPo (backup). The board won't run without it |
 | Power | 24 V 2.5 A barrel; the back switch cuts DC input (and the printer) |
 | Other | DS2411 1-wire silicon serial on gpio3 B4 (unused so far); no camera |
@@ -97,16 +97,16 @@ reference terminal. A triangle on the PCB marks pin 1.
 Pins 5 and 6 are a spare serial port. The stock device tree muxes them to UART4 (`serial@ff1c0000`,
 `/dev/ttyS4` on stock 5.1) and leaves it enabled; nothing on the reference terminal uses it. The Android
 10 DTB turns UART4 off, so using it there needs a DTB change (enable `serial@ff1c0000` with the UART4
-pins). On Android 10 all three (pins 5, 6 and 8) work as plain GPIO outputs through sysfs, the same way
-as the LEDs:
+pins). On Android 10 all three (pins 5, 6 and 8) work as plain GPIO outputs, the same way as the LEDs.
+The boot hook sets them up (outputs, low, writable from Home Assistant) when this file exists:
 
 ```sh
-for g in 26 27 118; do
-  [ -d /sys/class/gpio/gpio$g ] || echo $g > /sys/class/gpio/export
-  echo out > /sys/class/gpio/gpio$g/direction
-  echo 0 > /sys/class/gpio/gpio$g/value
-done
+adb shell "touch /data/citaq/cn5-gpio"
+adb reboot
+adb shell "echo 1 > /sys/class/gpio/gpio27/value"     # pin 5 on; gpio26 = pin 6, gpio118 = pin 8
 ```
+
+(This needs the boot hook from 26 Nov 2026 or later; reinstall it with `install_data.py` if yours is older.)
 
 The reporter uses them to switch an extra RGB strip through three logic-level MOSFETs. Things to know:
 
@@ -117,7 +117,48 @@ The reporter uses them to switch an extra RGB strip through three logic-level MO
   100 kΩ or more, or it fights the pull-ups and the low level won't be clean.
 - 3.3 V is low gate drive for a MOSFET. Pick one rated at 2.5-3.3 V V<sub>GS</sub> for the current you need.
 - As inputs (buttons), sysfs can read them but only by polling. A proper button needs a `gpio-keys` entry
-  in the DTB, and Home Assistant reading them over adb is too slow for a momentary button anyway.
+  in the DTB, and Home Assistant reading them over adb is too slow for a momentary button anyway. For
+  buttons, [the RECOVER line](#extra-buttons-on-the-recover-line) is the easier route.
+
+## Extra buttons on the RECOVER line
+
+**Untested on Android 10.** RECOVER (K3) isn't a plain switch: it shorts the SoC's ADC (SARADC channel 1),
+which has a 10 kΩ pull-up to 1.8 V. Each extra button pulls that line to ground through its own resistor,
+and the ADC tells them apart by voltage. The stock 5.1 device tree reads it as a 6-key ladder:
+
+| Button | Resistor to GND | Voltage | Default key (Android) |
+|---|---|---|---|
+| 1 | 0 Ω (this is RECOVER itself) | 0 V | volume up |
+| 2 | 2 kΩ | 0.30 V | volume down |
+| 3 | 5.1 kΩ | 0.61 V | menu |
+| 4 | 8.2 kΩ | 0.81 V | camera |
+| 5 | 12 kΩ | 0.98 V | back |
+| 6 | 27 kΩ | 1.31 V | home |
+
+Wire each button in series with its resistor, all in parallel across the two RECOVER pads. Use 1 %
+resistors. Android 10 doesn't read the line by default, so build the DTB with the option on
+([INSTALL.md step 5](INSTALL.md#5-build-the-dtb-and-boot-image-linuxwsl)):
+
+```sh
+ADC_KEYS=1 COUNTRY=AU sh dtb/make_citaq_a10_dtb.sh px5/px5.dtb citaq-a10.dtb <your serial>
+```
+
+`ADC_KEYCODES="115 114 139 212 158 172"` (Linux key codes, buttons 1 to 6) changes what each button sends,
+for example `59 60 61 62 63 64` for F1 to F6. Test the new boot image in the recovery slot first. Then:
+
+```sh
+adb shell cat /sys/bus/iio/devices/iio:device0/in_voltage1_raw   # about 1023 idle, near 0 with RECOVER held
+adb shell getevent -l                                             # press each button: KEY_... DOWN / UP
+```
+
+Things to know:
+
+- **Holding button 1 (or RECOVER) while powering on still boots into recovery.** The others might too,
+  depending on how U-Boot reads the line. Don't hold any while powering on.
+- Android acts on the keys itself (back, home, volume). For a Home Assistant action, pick key codes Android
+  doesn't use (e.g. F1 to F6) and something on the terminal has to turn them into an HA call, for example
+  Tasker or Automate calling a webhook. The HA app doesn't pass key presses on.
+- Only one button can be read at a time. Pressing two at once reads as whichever pulls the line lowest.
 
 ## Other GPIOs
 

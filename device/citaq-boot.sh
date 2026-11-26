@@ -225,6 +225,16 @@ echo 0 > /sys/class/gpio/gpio106/value
 echo 0 > /sys/class/gpio/gpio124/value
 chmod 666 /sys/class/gpio/gpio106/value /sys/class/gpio/gpio124/value /dev/ttyS1
 stty -F /dev/ttyS1 115200 raw -echo crtscts 2>/dev/null
+# 3a) Optional: CN5 (LED-strip header) pins 5, 6 and 8 = gpio27, gpio26, gpio118 as extra outputs, set low and
+#     made world-writable like the LEDs, for Home Assistant (docs/HARDWARE.md, "LED header (CN5)"). They sit
+#     high (3.3 V, TXS0104E pull-ups) from power-on until this runs. Create /data/citaq/cn5-gpio to turn it on.
+if [ -f /data/citaq/cn5-gpio ]; then
+  for g in 26 27 118; do
+    [ -d /sys/class/gpio/gpio$g ] || echo $g > /sys/class/gpio/export
+    echo low > /sys/class/gpio/gpio$g/direction
+    chmod 666 /sys/class/gpio/gpio$g/value
+  done
+fi
 # 3b) 4G modem: Fibocom NL668-EAU (some units: Huawei ME909s-120, untested) on the internal USB hub (1-1.1). Nothing in the PX5 port powers it; the stock
 #     3.10 DT drove it through rk_bp_auto: power key gpio0 D4 (28), reset gpio3 B5 (109), W_DISABLE gpio3 B1 (105),
 #     all active-low. Driving all three high (key released, out of reset, radio enabled) brings it up on USB about

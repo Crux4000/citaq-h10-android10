@@ -25,6 +25,7 @@ connect to `<terminal-ip>:5555` and gives you a `media_player` entity. Use its
 | media volume (0–15) | `media volume --stream 3 --set 8` |
 | red LED on / off | `echo 1 > /sys/class/gpio/gpio124/value` / `echo 0 …` (or `script.kiosk_led`, below) |
 | blue LED | `/sys/class/gpio/gpio106/value` |
+| extra outputs on the LED header (CN5 pins 5, 6, 8) | `/sys/class/gpio/gpio27/value`, `gpio26`, `gpio118`; off unless `/data/citaq/cn5-gpio` exists (see [HARDWARE.md](HARDWARE.md#led-header-cn5)) |
 | relaunch the app | `am start -n io.homeassistant.companion.android/.launch.LaunchActivity` |
 | reboot | `reboot` |
 | CPU temperature (millidegrees, e.g. `55000` = 55 °C; needs the 21 Nov 2026 DTB to be accurate) | `cat /sys/class/thermal/thermal_zone0/temp` |
