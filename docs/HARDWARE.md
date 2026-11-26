@@ -30,10 +30,10 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | Wi-Fi/BT | **AP6256** (BCM4345 rev 9, 2.4 + 5 GHz) on SDIO0, or on some terminals an **AP6255** (BCM43455). The stock DT says AP6212, which is wrong for both. Bluetooth core **BCM4345C5** (AP6256) or **BCM4345C0** (AP6255) on **UART0 → /dev/ttyS0**; the Bluetooth library loads the matching firmware by chip name |
 | Audio | **Realtek RT5651** on I2C1 @ 0x1a **or Everest ES8316** @ 0x10 (Citaq fits either; same stock firmware, which lists both - the boot hook detects which and binds the matching sound card, result in `/data/citaq/codec`), i2s-8ch, MCLK = SCLK_I2S_8CH_OUT; speaker amp gpio0 C3 (gpio19), **active high**. The headphone jack and the speaker amp share the headphone output, so the boot hook mutes the amp while the jack is in. The ES8316 has no line out; its speaker amp is the same pin |
 | Printer | 80 mm thermal, ESC/POS, **UART1 → /dev/ttyS1, 115200, CTS flow control**, 552 dots wide. Buzzer off: `1F 1B 1F 50 42` (Citaq-specific; `1F 1B 1F 50 40` didn't silence it, so it's probably buzzer on, untested). Answers ESC/POS `DLE EOT 1-4` status queries even when offline; reply bytes in [HOME-ASSISTANT.md](HOME-ASSISTANT.md#when-the-printer-has-a-problem). CTS only drops when its buffer is full, not on lid open or paper out |
-| LEDs | red **gpio124**, blue **gpio106** (1 = on) |
+| LEDs | red **gpio124**, blue **gpio106** (1 = on), on the LED-strip header CN5, see [LED header (CN5)](#led-header-cn5) |
 | USB | internal GL850G hub (1-1) → 4G modem (1-1.1): Fibocom NL668-EAU, or Huawei ME909s-120 on some units (see [MODEM.md](MODEM.md)); rear hub GL850G (1-1.3) → 3 ports + RTL8152 Ethernet (1-1.3.4) |
 | JP2 | internal micro-USB = dwc2 OTG (`usb@ff580000`) = adb port |
-| CN13 / CN14 | two spare internal USB headers on the compute board, see [Spare internal USB ports](#spare-internal-usb-ports) |
+| CN13 / CN14 / CN22 | internal USB headers on the compute board (CN22 is most likely the rear I/O board's link), see [Spare internal USB ports](#spare-internal-usb-ports) |
 | Debug UART | UART2: **TP17** board TX, **TP18** board RX, **TP19** GND, 3.3 V, 115200 |
 | Buttons | power key gpio0 A2 (active low); RECOVER / RESET on the compute board |
 | Battery | 1S 3.7 V 1600 mAh LiPo (backup). The board won't run without it |
@@ -58,8 +58,46 @@ Both have the same pinout:
 | 4 | GND |
 | 5 | not connected (only goes to a test pad) |
 
-That's two more ports inside the case, for a barcode scanner, SDR dongle or similar. The reporter counts a
-third spare port if the expansion board isn't fitted. Which hub port each header hangs off isn't mapped yet.
+That's two more ports inside the case, for a barcode scanner, SDR dongle or similar.
+
+**Which hub port is which.** The reporter traced the internal GL850G hub's four downstream ports
+(DM1/DP1 to DM4/DP4). Linux names a device on hub port *n* `1-1.n`:
+
+| Hub port | Goes to | Linux name |
+|---|---|---|
+| 1 | 4G modem | `1-1.1` (matches the reference terminal) |
+| 2 | CN13 | `1-1.2` |
+| 3 | CN22 | `1-1.3` |
+| 4 | CN14 | `1-1.4` |
+
+On the reference terminal `1-1.3` is the rear GL850G hub (the 3 back ports and the Ethernet chip), so
+CN22 is most likely the cable to the rear I/O board and is only free if that board isn't fitted. The
+Linux names for CN13 and CN14 follow from the hub wiring; plug something in and check
+`ls /sys/bus/usb/devices` to confirm on your own terminal.
+
+## LED header (CN5)
+
+The 9-pin header that the LED strip plugs into carries more than the two LEDs. Traced by the reporter in
+[#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) on a spare board, not yet checked on the
+reference terminal. A triangle on the PCB marks pin 1.
+
+| Pin | Signal | Notes |
+|---|---|---|
+| 1 | +5 V | |
+| 2 | red LED, gpio124 (gpio3 D4) | 1 = on |
+| 3 | blue LED, gpio106 (gpio3 B2) | 1 = on |
+| 4 | GND | |
+| 5 | gpio27 (gpio0 D3) | UART4 in the stock device tree (probably RX) |
+| 6 | gpio26 (gpio0 D2) | UART4 in the stock device tree (probably TX) |
+| 7 | GND | |
+| 8 | gpio118 (gpio3 C6) | not used by anything in the stock device tree |
+| 9 | GND | |
+
+Pins 5 and 6 are a spare serial port. The stock device tree muxes them to UART4 (`serial@ff1c0000`,
+`/dev/ttyS4` on stock 5.1) and leaves it enabled; nothing on the reference terminal uses it. The Android
+10 DTB turns UART4 off, so using it there needs a DTB change (enable `serial@ff1c0000` with the UART4
+pins). Pin 8 can be used as a plain GPIO. The signal level isn't measured yet: assume 3.3 V and check with
+a meter before connecting anything.
 
 ## Other GPIOs
 
