@@ -33,7 +33,7 @@ harmless. CN3/CN7 are empty footprints and aren't needed.
 | LEDs | red **gpio124**, blue **gpio106** (1 = on), on the LED-strip header CN5, see [LED header (CN5)](#led-header-cn5) |
 | USB | internal GL850G hub (1-1) → 4G modem (1-1.1): Fibocom NL668-EAU, or Huawei ME909s-120 on some units (see [MODEM.md](MODEM.md)); rear hub GL850G (1-1.3) → 3 ports + RTL8152 Ethernet (1-1.3.4) |
 | JP2 | internal micro-USB = dwc2 OTG (`usb@ff580000`) = adb port |
-| CN13 / CN14 / CN22 | internal USB headers on the compute board (CN22 is most likely the rear I/O board's link), see [Spare internal USB ports](#spare-internal-usb-ports) |
+| CN13 / CN14 / CN18 | internal USB headers on the compute board (CN18 is the rear I/O board's link), see [Spare internal USB ports](#spare-internal-usb-ports) |
 | Debug UART | UART2: **TP17** board TX, **TP18** board RX, **TP19** GND, 3.3 V, 115200 |
 | Buttons | power key gpio0 A2 (active low); RECOVER / RESET on the compute board |
 | Battery | 1S 3.7 V 1600 mAh LiPo (backup). The board won't run without it |
@@ -65,15 +65,16 @@ That's two more ports inside the case, for a barcode scanner, SDR dongle or simi
 
 | Hub port | Goes to | Linux name |
 |---|---|---|
-| 1 | 4G modem | `1-1.1` (matches the reference terminal) |
+| 1 | 4G modem | `1-1.1` |
 | 2 | CN13 | `1-1.2` |
-| 3 | CN22 | `1-1.3` |
+| 3 | CN18, cable to the rear I/O board | `1-1.3` |
 | 4 | CN14 | `1-1.4` |
 
-On the reference terminal `1-1.3` is the rear GL850G hub (the 3 back ports and the Ethernet chip), so
-CN22 is most likely the cable to the rear I/O board and is only free if that board isn't fitted. The
-Linux names for CN13 and CN14 follow from the hub wiring; plug something in and check
-`ls /sys/bus/usb/devices` to confirm on your own terminal.
+The reporter confirmed all four by plugging devices in, and they match the reference terminal, where
+`1-1.3` is the rear GL850G hub (the 3 back ports and the Ethernet chip). CN18 feeds that rear I/O board,
+so it's only free if you leave the board out, and then it's a third internal port (you lose the back USB
+ports and Ethernet). Check CN18's pinout with a meter first; only CN13 and CN14 are mapped above.
+(CN22 is the 3.5 mm jack's connector, not USB.)
 
 ## LED header (CN5)
 
@@ -87,17 +88,36 @@ reference terminal. A triangle on the PCB marks pin 1.
 | 2 | red LED, gpio124 (gpio3 D4) | 1 = on |
 | 3 | blue LED, gpio106 (gpio3 B2) | 1 = on |
 | 4 | GND | |
-| 5 | gpio27 (gpio0 D3) | UART4 in the stock device tree (probably RX) |
-| 6 | gpio26 (gpio0 D2) | UART4 in the stock device tree (probably TX) |
+| 5 | gpio27 (gpio0 D3) | 3.3 V; UART4 in the stock device tree (probably RX) |
+| 6 | gpio26 (gpio0 D2) | 3.3 V; UART4 in the stock device tree (probably TX) |
 | 7 | GND | |
-| 8 | gpio118 (gpio3 C6) | not used by anything in the stock device tree |
+| 8 | gpio118 (gpio3 C6) | 3.3 V; not used by anything in the stock device tree |
 | 9 | GND | |
 
 Pins 5 and 6 are a spare serial port. The stock device tree muxes them to UART4 (`serial@ff1c0000`,
 `/dev/ttyS4` on stock 5.1) and leaves it enabled; nothing on the reference terminal uses it. The Android
 10 DTB turns UART4 off, so using it there needs a DTB change (enable `serial@ff1c0000` with the UART4
-pins). Pin 8 can be used as a plain GPIO. The signal level isn't measured yet: assume 3.3 V and check with
-a meter before connecting anything.
+pins). On Android 10 all three (pins 5, 6 and 8) work as plain GPIO outputs through sysfs, the same way
+as the LEDs:
+
+```sh
+for g in 26 27 118; do
+  [ -d /sys/class/gpio/gpio$g ] || echo $g > /sys/class/gpio/export
+  echo out > /sys/class/gpio/gpio$g/direction
+  echo 0 > /sys/class/gpio/gpio$g/value
+done
+```
+
+The reporter uses them to switch an extra RGB strip through three logic-level MOSFETs. Things to know:
+
+- **They go through a TI TXS0104E level shifter** between the SoC and the header, and sit at **3.3 V
+  (high)** from power-on until something drives them low. Anything connected turns on during boot.
+- The TXS0104E has weak internal pull-ups (about 10 kΩ) and is meant for high-impedance inputs. A MOSFET
+  gate is fine. Don't drive an LED or a relay from it directly, and keep any pull-down on the far side at
+  100 kΩ or more, or it fights the pull-ups and the low level won't be clean.
+- 3.3 V is low gate drive for a MOSFET. Pick one rated at 2.5-3.3 V V<sub>GS</sub> for the current you need.
+- As inputs (buttons), sysfs can read them but only by polling. A proper button needs a `gpio-keys` entry
+  in the DTB, and Home Assistant reading them over adb is too slow for a momentary button anyway.
 
 ## Other GPIOs
 
