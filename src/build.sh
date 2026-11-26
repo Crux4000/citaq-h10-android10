@@ -7,13 +7,14 @@
 #   blshim    Android brightness -> real backlight PWM
 #   volshim   Android media volume -> codec volume (RT5651 or ES8316)
 #   propset   rewrite an ro.* property in place (ro.serialno fix)
+#   qmidial   QMI data call for the Fibocom NL668 under the ROM's RIL (optional, docs/MODEM.md)
 set -e
 cd "$(dirname "$0")"
 OUT=${OUT:-out}; mkdir -p "$OUT"
 if command -v aarch64-linux-gnu-gcc >/dev/null; then CC="aarch64-linux-gnu-gcc -static"
 elif python3 -c 'import ziglang' 2>/dev/null; then CC="python3 -m ziglang cc -target aarch64-linux-musl -static"
 else echo "need aarch64-linux-gnu-gcc or zig (pip install ziglang)" >&2; exit 1; fi
-for p in rkio:rkio ilits:ilits.bin blshim:blshim volshim:volshim propset:propset; do
+for p in rkio:rkio ilits:ilits.bin blshim:blshim volshim:volshim propset:propset qmidial:qmidial; do
   src=${p%%:*}; bin=${p##*:}
   $CC -O2 -Wall -o "$OUT/$bin" "$src.c"
   echo "built $OUT/$bin"

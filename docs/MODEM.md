@@ -133,8 +133,10 @@ adb reboot
 
 At boot the hook checks the stock library's MD5, copies it to `/data/citaq/ril/`, rewrites two entries for
 modems no H10 ships with (Fibocom NL668 `1508:1001`: AT on `ttyUSB2`, PPP on `ttyUSB3`; Huawei ME909s
-`12d1:15c1`: AT on `ttyUSB2`, PPP on `ttyUSB0`), checks the result's MD5, bind-mounts it over the original and
-restarts `rild`. Nothing on `/vendor` is changed; `/data/citaq/ril/ril.log` says what it did.
+`12d1:15c1`: AT on `ttyUSB2`, PPP on `ttyUSB0`), fixes how it hangs up (it called a `busybox` this ROM doesn't
+have, so `pppd` kept running when mobile data was switched off and the next connect failed with "port busy"),
+checks the result's MD5, bind-mounts it over the original and restarts `rild`. Nothing on `/vendor` is
+changed; `/data/citaq/ril/ril.log` says what it did.
 
 After a reboot Settings → Network → Mobile network is no longer greyed out, the status bar shows LTE, and
 Android uses mobile data **only when Wi-Fi/Ethernet are down** (Wi-Fi stays the default). The APN comes from
@@ -142,18 +144,54 @@ the modem's stored context 1 (`AT+CGDCONT?`) or Android's APN settings.
 
 | Modem | Result |
 |---|---|
-| Fibocom NL668-EAU | ✅ works (26 Nov 2026, Vodafone AU): `MOBILE[LTE] CONNECTED` on `ppp0`, pings and DNS fine |
+| Fibocom NL668-EAU | ✅ works (26 Nov 2026, Vodafone AU): `MOBILE[LTE] CONNECTED`, pings and DNS fine, switching mobile data off and on works |
 | Huawei ME909s-120 | ❓ patched in the same way, untested. Please try it and report |
 
 Things to know:
 
 - **SMS scripts and the RIL both want the AT port.** `rild` holds `ttyUSB2` open the whole time, so
-  `at-probe.sh`, `sms-test.sh` and an SMS bridge on that port will clash with it. That's why it's opt-in. To
-  use them, stop the RIL first (`adb shell "su 0 setprop ctl.stop vendor.ril-daemon"`, `ctl.start` to bring
-  it back) or leave mobile data off.
-- **Speed:** PPP, so roughly 10-20 Mbit/s. Fine as a backup link for Home Assistant.
+  `at-probe.sh`, `sms-test.sh` and an SMS bridge on that port will clash with it. That's why it's opt-in. On the
+  NL668 the QMI option below frees `ttyUSB3` for them. Otherwise leave mobile data off, or stop the RIL first
+  (`adb shell "su 0 setprop ctl.stop vendor.ril-daemon"`, `ctl.start` to bring it back); stopping it while
+  connected can leave the modem's data call open until the next reboot.
+- **Speed:** PPP over a serial port. Fine as a backup link for Home Assistant.
 - **To undo:** `adb shell "su 0 rm /data/citaq/mobile-data"` and reboot. The stock library is back.
 - If `ril.log` says the MD5 differs, your ROM's library isn't the one this was made for; please open an issue.
+
+#### Faster: QMI instead of PPP (Fibocom NL668, opt-in)
+
+The NL668 also has a QMI data interface (`wwan0`, `qmi_wwan` driver, `/dev/cdc-wdm0` control channel). Section
+3b3 of the boot hook can use it for the data link while the RIL still does everything else: the RIL's "dial
+PPP" step (`/etc/ppp/call-pppd`) is swapped for `qmidial` (`src/qmidial.c`, a small static QMI client built by
+`src/build.sh`). It starts the call over QMI in raw-IP mode, renames `wwan0` to `ppp0` and sets the same
+properties `pppd` would, so the RIL and Android see a normal mobile link. It runs as `pppd` so the RIL's hang-up
+stops it too. A small root watcher keeps `/dev/cdc-wdm0` and the kernel's raw-IP switch right, including after
+the modem resets.
+
+```sh
+src/build.sh                                                   # builds out/qmidial (or install_data.py picks it up)
+adb push src/out/qmidial /data/local/tmp/
+adb shell "su 0 sh -c 'cp /data/local/tmp/qmidial /data/citaq/qmidial; chmod 755 /data/citaq/qmidial; touch /data/citaq/mobile-data /data/citaq/mobile-data-qmi'"
+adb reboot
+```
+
+Check with `adb shell "su 0 cat /data/citaq/ril/ril.log /data/citaq/qmi/qmi.log"` (the first ends in `data
+link: QMI`). Why bother:
+
+- **No serial-port limit:** the link runs at whatever the network gives (PPP over the USB serial port is the
+  bottleneck at LTE speeds). On the reference terminal, the kiosk itself (`nc` downloads at 1 GHz) topped out
+  before the link did, so there's no clean number yet.
+- **`ttyUSB3` stays free:** SMS and AT scripts can use it while mobile data is on:
+  `adb shell "su 0 sh -c 'PORT=/dev/ttyUSB3 sh /data/local/tmp/sms-test.sh <number>'"`.
+
+Seen on the reference terminal (26 Nov 2026), with PPP and with QMI alike: the NL668 sometimes drops off USB
+and comes back ~15 s later (a modem reset), often around a data connect. The RIL reconnects by itself and the
+hook's watcher re-arms QMI, so data comes back within a minute, but the cause isn't known yet (power, SIM
+contact and the RIL's `AT+CGACT=0,1` before each connect are suspects). `dmesg | grep "usb 1-1.1: new"` counts
+them; please report if you see it too.
+
+NL668 only; the ME909s has no QMI (its fast interface is a CDC Ethernet one, not wired up yet). Undo with
+`rm /data/citaq/mobile-data-qmi` and a reboot, which goes back to PPP.
 
 ### PPP test
 

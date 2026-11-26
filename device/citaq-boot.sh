@@ -266,9 +266,19 @@ fi
 #     with the right ports for the Citaq modems:
 #       0x33988: MW100 19f5:9013 -> Fibocom NL668 1508:1001 (AT /dev/ttyUSB2, PPP /dev/ttyUSB3)  - tested
 #       0x305cc: MU609 12d1:1506 -> Huawei ME909s 12d1:15c1 (AT /dev/ttyUSB2, PPP /dev/ttyUSB0)  - untested
+#     A third patch fixes hanging up: the RIL stops pppd with "busybox1.11 killall pppd", and this ROM has no
+#     busybox, so pppd kept running when mobile data was switched off and the next connect failed ("port busy").
+#       0x1f8b0: "busybox1.11 killall pppd" -> "            killall pppd" (toybox)
 #     bind-mounts it over the original and restarts rild. Only applied when the library is exactly the known
 #     one (MD5 checked before and after). The RIL then keeps the modem's ttyUSB2 open, so the AT/SMS scripts
 #     (device/modem/) can't use that port while this is on. Delete the file and reboot to undo. See docs/MODEM.md.
+# 3b3) Optional, Fibocom NL668 only, on top of 3b2: the data link over QMI instead of PPP (create
+#     /data/citaq/mobile-data-qmi too, and install qmidial from src/build.sh as /data/citaq/qmidial). The RIL
+#     still does everything else; only its "dial PPP" step (/etc/ppp/call-pppd) is swapped for qmidial, which
+#     starts the call on the modem's QMI interface (wwan0, raw IP), renames it ppp0 and sets the same
+#     net.ppp0.* properties pppd's ip-up would, so the RIL and Android see a normal PPP link. Full LTE speed
+#     instead of PPP's serial limit, and ttyUSB3 (the PPP port) stays free for AT/SMS scripts (PORT=/dev/ttyUSB3).
+#     qmidial runs as "pppd" (symlink) so the RIL's "killall pppd" hangs it up too.
 if [ -f /data/citaq/mobile-data ] && [ ! -f /data/citaq/no-modem ]; then
   V=/vendor/lib64/libril-rk29-dataonly.so; D=/data/citaq/ril; R=$D/libril-rk29-dataonly.so
   mkdir -p $D
@@ -276,10 +286,49 @@ if [ -f /data/citaq/mobile-data ] && [ ! -f /data/citaq/no-modem ]; then
     cp $V $R.tmp
     printf '\010\025\000\000\001\020\000\000' | dd of=$R.tmp bs=1 seek=$((0x33988)) conv=notrunc 2>/dev/null
     printf '\301' | dd of=$R.tmp bs=1 seek=$((0x305cc)) conv=notrunc 2>/dev/null
-    if [ "$(md5sum $R.tmp | cut -d' ' -f1)" = 32236cb79332e653189f534fa597d8d1 ]; then
+    printf '            ' | dd of=$R.tmp bs=1 seek=$((0x1f8b0)) conv=notrunc 2>/dev/null
+    if [ "$(md5sum $R.tmp | cut -d' ' -f1)" = a31b47dcbbf6a5be511c3d61cbbc6d35 ]; then
       mv $R.tmp $R; chmod 644 $R; chcon u:object_r:vendor_file:s0 $R
+      Q=/data/citaq/qmi; how=PPP
+      if [ -f /data/citaq/mobile-data-qmi ] && [ -x /data/citaq/qmidial ]; then
+        mkdir -p $Q; chmod 755 $Q; ln -sf /data/citaq/qmidial $Q/pppd   # the hook's umask makes new dirs 700
+        : > $Q/qmi.log; chown radio:radio $Q/qmi.log; chmod 664 $Q/qmi.log   # rild runs call-pppd as radio
+        cat > $Q/call-pppd <<'EOF'
+#!/system/bin/sh
+# written by the Citaq boot hook (3b3): QMI data instead of PPP. rild passes pppd's arguments; they are ignored.
+/system/bin/setprop net.gprs.ppp-exit ""
+/system/bin/setprop net.ppp0.local-ip ""   # else the RIL reads the last call's address before this one is up
+i=0
+while { [ ! -c /dev/cdc-wdm0 ] || [ "$(cat /sys/class/net/wwan0/qmi/raw_ip 2>/dev/null)" = N ]; } && [ $i -lt 20 ]; do
+  sleep 1; i=$((i + 1))
+done
+/data/citaq/qmi/pppd 2>> /data/citaq/qmi/qmi.log
+R=$?
+case $R in 0) R=5;; 1) R=8;; 2) R=16;; esac
+/system/bin/log -t pppd "qmidial exited, as pppd exit code $R"
+/system/bin/setprop net.gprs.ppp-exit $R
+EOF
+        chmod 755 $Q/call-pppd; chcon u:object_r:system_file:s0 $Q/call-pppd
+        mount -o bind $Q/call-pppd /system/etc/ppp/call-pppd && how=QMI
+        # control node for rild (radio), and the kernel side of raw IP. The modem powers up ~14 s after section
+        # 3b, and if it ever resets it comes back as a new wwan0 with raw_ip off, so keep watching (root only can
+        # write it; qmidial runs as radio). Cheap: one check every 3 s.
+        setsid sh -c '
+          echo $$ > /acct/cgroup.procs
+          while :; do
+            u=/sys/class/usbmisc/cdc-wdm0/dev
+            if [ -e $u ] && { [ ! -c /dev/cdc-wdm0 ] || [ "$(cat $u)" != "$(cat /dev/citaq-wdm 2>/dev/null)" ]; }; then
+              rm -f /dev/cdc-wdm0; cat $u > /dev/citaq-wdm
+              mknod /dev/cdc-wdm0 c $(tr ":" " " < $u); chown radio:radio /dev/cdc-wdm0; chmod 660 /dev/cdc-wdm0
+            fi
+            r=/sys/class/net/wwan0/qmi/raw_ip
+            if [ -e $r ] && [ "$(cat $r)" = N ]; then ip link set wwan0 down; echo Y > $r; fi
+            sleep 3
+          done
+        ' > /dev/null 2>&1 < /dev/null &
+      fi
       mount -o bind $R $V && setprop ctl.restart vendor.ril-daemon
-      echo "$(date) mobile data: patched RIL mounted, rild restarted" > $D/ril.log
+      echo "$(date) mobile data: patched RIL mounted, rild restarted, data link: $how" > $D/ril.log
     else
       rm -f $R.tmp; echo "$(date) mobile data: patch result has the wrong MD5, not applied" > $D/ril.log
     fi

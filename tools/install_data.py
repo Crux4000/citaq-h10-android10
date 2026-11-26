@@ -10,6 +10,7 @@ usage: install_data.py <adb> <dir>
   blshim volshim propset                               -> brightness / volume / serial helpers
   thermalstub.jar    src/thermalstub/build.sh          -> stand-in thermalservice for Google Play
   bootlogo.png       optional, 1024x768 boot logo
+  qmidial            optional, src/build.sh: QMI data for the Fibocom NL668 (docs/MODEM.md, mobile-data-qmi)
   BCM4345C5.hcd      optional, Bluetooth firmware for the AP6256 (docs/BLUETOOTH.md) -> /data/citaq/bt/
   BCM4345C0.hcd      optional, Bluetooth firmware for the AP6255                    -> /data/citaq/bt/
   bt_vendor.conf     optional, device/bt/bt_vendor.conf                             -> /data/citaq/bt/
@@ -31,7 +32,7 @@ import subprocess
 import sys
 
 REQUIRED = ['citaq-boot.sh', 'ilits.bin', 'bcmdhd.ko', 'blshim', 'volshim', 'propset', 'thermalstub.jar']
-OPTIONAL = ['bootlogo.png']
+OPTIONAL = ['bootlogo.png', 'qmidial']
 BT_CONF = 'bt_vendor.conf'
 BT_HCD_MD5 = {                                       # Citaq fits either Wi-Fi/BT module
     'BCM4345C5.hcd': 'fc394331d03baa5847e2b5de94ffbc9b',   # AP6256; armbian/firmware bf5f7a8, 45,667 bytes
@@ -39,7 +40,7 @@ BT_HCD_MD5 = {                                       # Citaq fits either Wi-Fi/B
 }
 BT_DIR = '/data/citaq/bt'
 TARGET = {'citaq-boot.sh': 'ilits'}          # init's akmd service runs /data/citaq/ilits
-EXEC = {'citaq-boot.sh', 'ilits.bin', 'blshim', 'volshim', 'propset'}
+EXEC = {'citaq-boot.sh', 'ilits.bin', 'blshim', 'volshim', 'propset', 'qmidial'}
 
 
 
