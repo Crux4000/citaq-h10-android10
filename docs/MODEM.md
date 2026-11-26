@@ -153,8 +153,9 @@ Things to know:
   `at-probe.sh`, `sms-test.sh` and an SMS bridge on that port will clash with it. That's why it's opt-in. In
   practice (ME909s, 26 Nov 2026) `sms-test.sh` on `ttyUSB2` still sends the text, but the RIL reads the same
   port and can take the modem's `+CMGS` answer, so the script times out and can't say whether it was sent; the
-  script now warns about this. On the NL668 the QMI option below frees `ttyUSB3` for them. A second AT port on
-  the ME909s would do the same; not found yet. Otherwise leave mobile data off, or stop the RIL first
+  script now warns about this. On the NL668 the QMI option below frees `ttyUSB3` for them. On the ME909s
+  `ttyUSB3` answers AT while mobile data is on (26 Nov 2026), so `PORT=/dev/ttyUSB3` should work there too
+  (SMS on it not confirmed yet). Otherwise leave mobile data off, or stop the RIL first
   (`adb shell "su 0 setprop ctl.stop vendor.ril-daemon"`, `ctl.start` to bring it back); stopping it while
   connected can leave the modem's data call open until the next reboot.
 - **Speed:** PPP over a serial port. Fine as a backup link for Home Assistant.
@@ -190,8 +191,11 @@ link: QMI`). Why bother:
 Seen on the reference terminal (26 Nov 2026), with PPP and with QMI alike: the NL668 sometimes drops off USB
 and comes back ~15 s later (a modem reset), often around a data connect. The RIL reconnects by itself and the
 hook's watcher re-arms QMI, so data comes back within a minute, but the cause isn't known yet (power, SIM
-contact and the RIL's `AT+CGACT=0,1` before each connect are suspects). `dmesg | grep "usb 1-1.1: new"` counts
-them; please report if you see it too.
+contact and the RIL's `AT+CGACT=0,1` before each connect are suspects; the RIL also has a "reset modem" path
+that sends `AT+CFUN=1,1`, a full modem reboot). `dmesg | grep "usb 1-1.1: new"` lists them (the first line is
+the normal one at boot); please report if you see it too. An ME909s with mobile data on (26 Nov 2026) reset
+four times in the first four minutes after boot, then not at all over the next half hour, including while
+mobile data was switched off and on.
 
 NL668 only; the ME909s has no QMI (its fast interface is a CDC Ethernet one, not wired up yet). Undo with
 `rm /data/citaq/mobile-data-qmi` and a reboot, which goes back to PPP.
