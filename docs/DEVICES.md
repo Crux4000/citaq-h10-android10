@@ -82,20 +82,25 @@ Wi-Fi modules, and both modems power up and answer AT commands.
 
 ### 4: Citaq V8, on Android 6.0.1
 
-- **Model:** a **Citaq V8**, not an H10-3. `ro.product.model` is `CITAQ V8`; an H10 on the same 6.0 image
-  reports `CITAQ H10`, so the name comes from the unit, not the firmware. Same main board as the H10-3.
-  The V8 has a smaller screen mounted in portrait, with the same 1024x768 resolution.
+- **Model:** a **Citaq V8**, not an H10-3. Same main board as the H10-3. The V8 has a smaller screen
+  mounted in portrait, with the same 1024x768 resolution.
+- **Where the V8 settings live:** in the stock `/system/build.prop` (`ro.product.model=CITAQ V8`,
+  `ro.sf.hwrotation=90`). It runs exactly the same Android 6 build as Citaq's `RK3368_6.0_H10_20211130`
+  image, but that image (and an H10 running it) says `CITAQ H10` and `180`. The file dates suggest Citaq
+  made a V8 version of the same firmware (27 Nov 2026, [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6)).
+  Reflashing replaces this file, so **`adb pull /system/build.prop` and keep it with your backup** first.
 - **Board:** CTE-RK3368-V1.0. eMMC 16 GB, Toshiba (`016GB0`, maker ID `0x11`). 2 GB RAM (MemTotal
   2,047,980 kB). A 32 GB SD card shows up as `mmcblk1`, which doesn't matter.
 - **Stock build:** `POS-userdebug-20211130.1225`, `userdebug`, Android 6.0.1, device `rk3368`. The date
   matches Citaq's `RK3368_6.0_H10_20211130` Android 6.0 image.
 - **Stock device tree** (27 Nov 2026): identical to the H10-3's (power, touch, sound, Wi-Fi/Bluetooth,
   backlight, battery, keys, modem power) except the screen: the panel runs at 71 MHz instead of 65 MHz
-  and is a 6-bit panel (the H10-3's is 8-bit). It is still described as 1024x768 landscape, so the
-  portrait view comes from a rotation setting in the stock firmware.
+  and is a 6-bit panel (the H10-3's is 8-bit). It is still described as 1024x768 landscape; stock
+  Android rotates it 90° in software (`ro.sf.hwrotation=90`, `wm size` 768x1024, density 160).
 - **What the port still needs for the V8:** a screen option in the DTB (71 MHz, 6-bit) and display
   rotation with matching touch on Android 10. Citaq's 5.1.1 image (the route below) carries the H10's
   screen settings, so **hold off on reflashing until V8 support is in**. No V8 5.1 image is known.
+  Citaq's Android 6 image carries the V8's screen settings exactly, and H10 panels also run fine on them.
 - **Partition layout:** not the 5.1 one. System is 2 GiB and p16 starts at sector **5,627,904**
   (12,574,720 KB long) instead of 12,443,648, so the install tools stop at their first check. The way
   through is what terminal 2 did: flash Citaq's 5.1.1 image first (see

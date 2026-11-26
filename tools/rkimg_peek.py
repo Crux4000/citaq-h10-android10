@@ -8,11 +8,13 @@ Works on Windows, macOS and Linux with plain Python 3. Takes a firmware .zip as 
 
 Prints: the image header, the partition list inside it, the parameter (partition table +
 kernel command line), and for each device tree in the resource image the screen settings.
-Also saves parameter.txt, resource.img and the .dtb file(s) into a new folder next to the
-input, named <input>-peek.
+Also saves parameter.txt, resource.img, the .dtb file(s), uboot.img, trust.img and the loader
+into a new folder next to the input, named <input>-peek, and prints their md5s, the U-Boot
+version and any SD-card related strings in the bootloader parts.
 """
 import hashlib
 import os
+import re
 import struct
 import sys
 import zipfile
@@ -162,9 +164,23 @@ def main():
 
     os.makedirs(outdir, exist_ok=True)
     for pos, name, fname, nand_addr, size in sorted(parts):
-        if name not in ('parameter', 'resource') or size == 0:
+        if name not in ('parameter', 'resource', 'uboot', 'trust', 'bootloader') or size == 0:
             continue
         data = r.read_at(base + pos, size)
+        if name in ('uboot', 'trust', 'bootloader'):
+            out = os.path.basename(fname) or name + '.img'
+            with open(os.path.join(outdir, out), 'wb') as f:
+                f.write(data)
+            print(f'\n--- {name}: {out}, {len(data):,} B, md5 {hashlib.md5(data).hexdigest()} ---')
+            for m in sorted(set(re.findall(rb'U-Boot 20\d\d\.\d\d[ -~]{0,60}', data)))[:3]:
+                print(f'  version: {m.decode()}')
+            hits = sorted(set(s.decode() for s in re.findall(rb'[ -~]{6,}', data)
+                              if re.search(rb'(?i)sd ?card|sd ?boot|sdfw|sd_?update|external_sd|mmc ?1', s)))
+            for s in hits[:25]:
+                print(f'  sd: {s[:100]}')
+            if len(hits) > 25:
+                print(f'  sd: ... {len(hits) - 25} more')
+            continue
         if name == 'parameter':
             if data[:4] == b'PARM':
                 ln = struct.unpack('<I', data[4:8])[0]

@@ -84,14 +84,17 @@ a bigger size and tell you how much stays unused.
 `POS-userdebug-20211130…`, and p16 starts much earlier: `5627904` on the one measured.) Citaq's 6.0
 image uses a different partition layout, so the tools will refuse it. Terminal 2 in
 [DEVICES.md](DEVICES.md) got past this by flashing Citaq's Android 5.1.1 image
-(`RK3368-8780-LVDS9-Citaq-20211101.1015`) first, then starting again from step 1. That flash replaces
+(`RK3368-8780-LVDS9-Citaq-20211101.1015`) first, then starting again from step 1. Citaq support
+provided it; download links are in [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6), and
+`python tools/rkimg_peek.py <zip>` shows what's inside a firmware zip before you use it. That flash replaces
 everything on the eMMC, including the bootloader, so back up first. On the 6.0 layout everything before
 p16 is bigger than 2 GB: back up p16's start ÷ 2048 MiB (**2748 MiB** for a start of `5627904`) instead of
 the 1912 MiB in step 2, and on Windows pull it in three pieces.
 
 **`ro.product.model` says `CITAQ V8`?** That's a different model with a portrait screen, built on the
 same board. The 5.1.1 image above is the H10's and the port doesn't drive the V8's screen yet, so don't
-reflash it; see unit 4 in [DEVICES.md](DEVICES.md).
+reflash it; see unit 4 in [DEVICES.md](DEVICES.md). The V8's model and screen rotation live only in its
+stock `/system/build.prop`, which a reflash replaces, so `adb pull /system/build.prop` and keep it.
 
 ## 2. Back up the whole eMMC
 
