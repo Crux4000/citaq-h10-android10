@@ -1,9 +1,9 @@
 # 4G modem (Fibocom NL668-EAU)
 
-> **Status: hardware works, not tested with an active SIM.** The modem powers up, its drivers load, it answers
-> AT commands, has a good signal and can see all three Australian carriers. Registering on a network, SMS and
-> mobile data have **not** been tried yet on the NL668, because the test terminal has no active SIM. The
-> Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS** (see
+> **Status: registers on LTE and sends SMS.** The modem powers up, its drivers load, it answers AT commands,
+> has a good signal and sees all three Australian carriers. With an active SIM it **registers on LTE and sends
+> SMS** (26 Nov 2026). Receiving SMS is unconfirmed (that SIM may be data-only) and mobile data hasn't been
+> tried. The Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS** (see
 > [Other modems](#other-modems)).
 > **If you try it, please open an issue or comment on this repo and say what worked or what failed** (with your
 > carrier and the output of `device/modem/at-probe.sh`). That's how this gets from "should work" to "works".
@@ -30,7 +30,7 @@ does this on every boot. To keep the modem off, create the file `/data/citaq/no-
 The PX5 kernel already has both drivers:
 
 - `option` → **`/dev/ttyUSB0`–`3`**. **`ttyUSB2`** is the AT command port (1 and 3 answer too; 0 doesn't).
-- `qmi_wwan` → **`wwan0`** plus the QMI control device `cdc-wdm0` (see the note under "Not tested yet"): the data
+- `qmi_wwan` → **`wwan0`** plus the QMI control device `cdc-wdm0` (see the note under "Testing with an active SIM"): the data
   path, for mobile data without Android's phone stack.
 
 USB ID `1508:1001` ("Fibocom Wireless Inc. / Fibocom Modem"). `AT+GTUSBMODE?` reports `17`.
@@ -67,16 +67,22 @@ What it showed on the test terminal, **without a SIM**:
 **With a SIM** (23 Nov 2026, an old SIM that came in the terminal, probably no longer active): the board's
 SIM slot works on Android 10. `AT+CPIN?` gave `READY`, and the network scan marked Optus as available and
 Telstra and Vodafone as forbidden, so the modem read the SIM's home network. It stayed at `+CEREG: 0,2`
-(searching) and never registered, as expected for a cancelled SIM. Registration, SMS and data still need an
-active SIM.
+(searching) and never registered, as expected for a cancelled SIM.
 
-## Not tested yet (needs an active SIM)
+**With an active SIM** (26 Nov 2026, in a 3D-printed micro-to-standard adaptor): registered on LTE on its home
+network (`+CEREG: 0,1`, `+COPS: 0,0,"iiNet",7`) with a strong signal (`+CSQ: 25`, about −63 dBm), and
+`sms-test.sh` sent a text that arrived (`+CMGS: 5`). Texts sent *to* the terminal didn't arrive, while the same
+phone could text others. The modem was set up to accept them (`+CSMS: 0,1,1,1`, storage free), so it's likely the
+SIM's plan (possibly data-only); not settled yet. The NL668's default `+CNMI: 0,0,0,0,0` means no new-message
+notices: `AT+CNMI=2,1,0,0,0` (resets on reboot) makes it announce each stored text with `+CMTI: "ME",<index>`.
 
-With a SIM in, these are the things to try. Please report back either way.
+## Testing with an active SIM
+
+The steps below. Please report back either way.
 
 1. **Registration:** `AT+CPIN?` should say `READY`, `AT+CEREG?` should end in `,1` (home) or `,5` (roaming),
    and `AT+COPS?` should name the carrier.
-2. **SMS** (text mode). `device/modem/sms-test.sh` sends one message (works on a Huawei ME909s, not yet tried on the NL668); send it
+2. **SMS** (text mode). `device/modem/sms-test.sh` sends one message (works on both the NL668 and the Huawei ME909s); send it
    to your own phone:
    ```sh
    adb push device/modem/sms-test.sh /data/local/tmp/
@@ -148,7 +154,7 @@ Citaq fits different modules to the same board. So far:
 
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
-| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | as above |
+| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE and **sends SMS**; receiving unconfirmed, data untested |
 | Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS** (unit 2); mobile data untested |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,

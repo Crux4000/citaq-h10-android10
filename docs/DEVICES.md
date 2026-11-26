@@ -28,6 +28,8 @@ Wi-Fi modules, and both modems power up and answer AT commands.
 - **Result:** the reference terminal the port was developed on. Everything in
   [What works](../README.md#what-works).
 - **Sound:** RT5651. The boot hook's codec detection picks it and sound plays (22 Nov 2026).
+- **4G modem:** Fibocom NL668-EAU. With an active SIM it registers on LTE and sends SMS (26 Nov 2026);
+  receiving unconfirmed (the SIM may be data-only). See [MODEM.md](MODEM.md).
 
 ### 2: Citaq H10-3, shipped with Android 6.0
 
