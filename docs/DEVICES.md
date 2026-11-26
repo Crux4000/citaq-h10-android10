@@ -57,8 +57,9 @@ Wi-Fi modules, and both modems power up and answer AT commands.
 - **4G modem:** **Huawei ME909s-120** (revision `11.617.24.00.00`), like unit 3. On Android 10 it powers
   up, answers AT commands on `ttyUSB2`, reads the SIM and registers on LTE with an active SIM, even with
   its antennas removed, and **sends SMS** with `sms-test.sh` (text received, 23 Nov 2026) and **receives SMS**
-  (`AT+CMGL`, 26 Nov 2026). Mobile data: the stock RIL doesn't recognise it (`12d1:15c1`, data probe
-  26 Nov 2026); the opt-in RIL patch is untested. See [MODEM.md](MODEM.md#other-modems).
+  (`AT+CMGL`, 26 Nov 2026). **Android mobile data works** with the opt-in RIL patch (PPP on `ttyUSB0`,
+  Telstra, Wi-Fi off, 26 Nov 2026); the stock RIL doesn't recognise it (`12d1:15c1`). See
+  [MODEM.md](MODEM.md#other-modems).
 - **Also:** a second board of the same model failed the write step with unstable RAM/eMMC. That's a
   hardware fault, not the port.
 

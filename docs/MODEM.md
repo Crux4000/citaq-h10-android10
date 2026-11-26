@@ -4,8 +4,8 @@
 > drivers load, it answers AT commands, has a good signal and sees all three Australian carriers. With an
 > active SIM it **registers on LTE, sends SMS and gives Android mobile data** (opt-in, see
 > [Android mobile data](#android-mobile-data-opt-in), 26 Nov 2026). Receiving SMS is unconfirmed (that SIM may
-> be data-only). The Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS**;
-> its mobile data uses the same opt-in and is waiting for a test (see [Other modems](#other-modems)).
+> be data-only). The Huawei ME909s fitted to some terminals has registered on LTE, **sent and received SMS**
+> and **gives Android mobile data** with the same opt-in (see [Other modems](#other-modems)).
 > **If you try it, please open an issue or comment on this repo and say what worked or what failed** (with your
 > carrier and the output of `device/modem/at-probe.sh`). That's how this gets from "should work" to "works".
 
@@ -145,13 +145,16 @@ the modem's stored context 1 (`AT+CGDCONT?`) or Android's APN settings.
 | Modem | Result |
 |---|---|
 | Fibocom NL668-EAU | ✅ works (26 Nov 2026, Vodafone AU): `MOBILE[LTE] CONNECTED`, pings and DNS fine, switching mobile data off and on works |
-| Huawei ME909s-120 | ❓ patched in the same way, untested. Please try it and report |
+| Huawei ME909s-120 | ✅ works (26 Nov 2026, Telstra, unit 2): `MOBILE[LTE] CONNECTED`, validated, browsing over LTE with Wi-Fi off |
 
 Things to know:
 
 - **SMS scripts and the RIL both want the AT port.** `rild` holds `ttyUSB2` open the whole time, so
-  `at-probe.sh`, `sms-test.sh` and an SMS bridge on that port will clash with it. That's why it's opt-in. On the
-  NL668 the QMI option below frees `ttyUSB3` for them. Otherwise leave mobile data off, or stop the RIL first
+  `at-probe.sh`, `sms-test.sh` and an SMS bridge on that port will clash with it. That's why it's opt-in. In
+  practice (ME909s, 26 Nov 2026) `sms-test.sh` on `ttyUSB2` still sends the text, but the RIL reads the same
+  port and can take the modem's `+CMGS` answer, so the script times out and can't say whether it was sent; the
+  script now warns about this. On the NL668 the QMI option below frees `ttyUSB3` for them. A second AT port on
+  the ME909s would do the same; not found yet. Otherwise leave mobile data off, or stop the RIL first
   (`adb shell "su 0 setprop ctl.stop vendor.ril-daemon"`, `ctl.start` to bring it back); stopping it while
   connected can leave the modem's data call open until the next reboot.
 - **Speed:** PPP over a serial port. Fine as a backup link for Home Assistant.
@@ -253,8 +256,8 @@ Citaq fits different modules to the same board. So far:
 
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
-| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE, **sends SMS**, **data over PPP** (Linux level, not yet in Android); receiving SMS unconfirmed |
-| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS** (unit 2); mobile data untested |
+| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE, **sends SMS**, **Android mobile data** (opt-in, PPP or QMI); receiving SMS unconfirmed |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS**, **Android mobile data** (opt-in, PPP; unit 2) |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
 [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and
@@ -300,13 +303,16 @@ Test
 ```
 
 `AT+CMGL="REC UNREAD"` lists only new ones (and marks them read), and `AT+CMGD=<index>` deletes one so the
-SIM's storage doesn't fill up. Mobile data is still untested.
+SIM's storage doesn't fill up.
 
-Mobile data: the stock RIL doesn't recognise the ME909s (`12d1:15c1`) as shipped. The opt-in patch in
-[Android mobile data](#android-mobile-data-opt-in) adds it (AT on `ttyUSB2`, PPP on `ttyUSB0`), untested so
-far. In its current USB layout the ME909s also shows a CDC Ethernet `wwan0` (`cdc_ether` binds it), so a
-faster non-PPP route exists too. If you have one, please run `at-probe.sh` and `modem-data-probe.sh` and open
-an issue with the logs. The script shows the IMEI and other long numbers as
+**Android mobile data works** (26 Nov 2026, Telstra SIM, unit 2). The stock RIL doesn't recognise the ME909s
+(`12d1:15c1`) as shipped; the opt-in patch in [Android mobile data](#android-mobile-data-opt-in) adds it (AT on
+`ttyUSB2`, PPP on `ttyUSB0`). With Wi-Fi off, `dumpsys connectivity` showed `MOBILE[LTE] CONNECTED` on `ppp0`,
+validated, and a what's-my-IP site showed a Telstra address. The APN came from Android's APN list (Telstra
+Internet). `ppp-test.sh` fails with "Connect script failed" while this is on, as expected (the RIL holds
+`ttyUSB0`). In its current USB layout the ME909s also shows a CDC Ethernet `wwan0` (`cdc_ether` binds it), so a
+faster non-PPP route exists too, not wired up yet. If you have one, please run `at-probe.sh` and
+`modem-data-probe.sh` and open an issue with the logs. The script shows the IMEI and other long numbers as
 `[hidden]`, but check the log before posting anyway, and paste it inside a ```` ``` ```` code block so GitHub
 keeps the layout.
 
