@@ -80,6 +80,14 @@ exception is the size: some eMMCs are slightly bigger (18333696 has been reporte
 because everything Android 10 uses ends where the 16 GB reference unit's eMMC ends. The tools accept
 a bigger size and tell you how much stays unused.
 
+**On Android 6.0?** (`adb shell getprop ro.build.version.release` says `6.0`, the build ID looks like
+`POS-userdebug-20211130…`, and p16 starts much earlier, around `5619712`.) Citaq's 6.0 image uses a
+different partition layout, so the tools will refuse it. Terminal 2 in [DEVICES.md](DEVICES.md) got
+past this by flashing Citaq's Android 5.1.1 image (`RK3368-8780-LVDS9-Citaq-20211101.1015`) first, then
+starting again from step 1. That flash replaces everything on the eMMC, including the bootloader, so
+back up first. On the 6.0 layout everything before p16 is bigger than 2 GB: back up p16's start ÷ 2048
+MiB (about 2744 MiB) instead of the 1912 MiB in step 2, and on Windows pull it in three pieces.
+
 ## 2. Back up the whole eMMC
 
 The first ~2 GB holds every partition except your user data, and it's what you'd need to put the

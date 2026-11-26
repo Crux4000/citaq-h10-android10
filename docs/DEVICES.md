@@ -13,8 +13,9 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 | 1 | Citaq H10-3 (ex-Menulog / Just Eat) | `20220926.JE.H10.5.1.0005` | RT5651 | AP6256 | ✅ Everything in [What works](../README.md#what-works) | @Crux4000 |
 | 2 | Citaq H10-3 (shipped with Android 6.0) | `POS_32-userdebug-20211101.1015` | ES8316 | AP6255 | ✅ Works | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
 | 3 | Citaq H10-3 (ex-Menulog, green pre-rebrand) | `20200303.JE.H10.5.1.0004` | RT5651 | AP6255 | ❓ Checks only, not installed yet | [netguycode/citaq#32](https://github.com/netguycode/citaq/issues/32) |
+| 4 | Citaq H10-3 (ex-Just Eat, on Android 6.0?) | `POS-userdebug-20211130.1225` | RT5651 | ❓ | ❓ Checks only. Different partition layout, needs 5.1.1 first | [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6) |
 
-All three boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and
+All four boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and
 units 1 and 2 carry byte-for-byte the same stock device tree. Citaq fits different sound, Wi-Fi/Bluetooth,
 eMMC and 4G modem chips to boards that look identical, and mixes them independently: unit 3 has unit 1's
 sound chip and unit 2's Wi-Fi module and 4G modem. The port detects or supports both sound chips and both
@@ -66,6 +67,21 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   [MODEM.md](MODEM.md#other-modems).
 - **Result:** not installed yet. The owner reports Wi-Fi crashes on stock 5.1.
 
+### 4: Citaq H10-3, ex-Just Eat, probably on Android 6.0
+
+- **Board:** CTE-RK3368-V1.0. eMMC 16 GB, Toshiba (`016GB0`, maker ID `0x11`). 2 GB RAM (MemTotal
+  2,047,980 kB). A 32 GB SD card shows up as `mmcblk1`, which doesn't matter.
+- **Stock build:** `POS-userdebug-20211130.1225`, `userdebug`, model `CITAQ V8`, device `rk3368`. The date
+  matches Citaq's `RK3368_6.0_H10_20211130` Android 6.0 image (Android version not confirmed yet).
+- **Partition layout:** not the 5.1 one. System is 2 GiB and p16 is 12,574,720 KB, which puts p16's start
+  at about sector 5,619,712 instead of 12,443,648, so the install tools stop at their first check. The way
+  through is what terminal 2 did: flash Citaq's 5.1.1 image first (see
+  [INSTALL.md step 1](INSTALL.md#1-check-the-terminal)).
+- **Checks on stock** (23 Nov 2026): `ili2105_ts/2-0041` (Ilitek touch), `rt5651/1-001a`, `rk818/0-001c`,
+  `syr82x/0-0040`. Same parts as terminal 3, all supported by the port.
+- **Wi-Fi/BT and 4G modem:** not known yet.
+- **Result:** not installed yet.
+
 ## Not tried yet
 
 These use the same RK3368 chip, so the PX5 Android 10 build should be able to run on them **in
@@ -77,7 +93,7 @@ slot) and [Tips for the next person](PORTING-NOTES.md#tips-for-the-next-person) 
 
 | Device | Why it's interesting | Status |
 |---|---|---|
-| **Citaq H10-3 with a different stock build** | The root method needs a `userdebug` build. Citaq's generic `POS_32-userdebug` build and the older Just Eat `…0004` build are `userdebug` too (see above); other builds are still unknown. | ⚠️ two more found |
+| **Citaq H10-3 with a different stock build** | The root method needs a `userdebug` build. Citaq's generic `POS_32-userdebug` build and the older Just Eat `…0004` build are `userdebug` too (see above), and so is Citaq's Android 6.0 `POS-userdebug` build, though it uses a different partition layout. Other builds are still unknown. | ⚠️ three more found |
 | Other Citaq models | Worth checking `ro.board.platform`. If it says `rk3368`, the port is a DTB away. | ❓ |
 | Beelink i68 / Tronsmart Orion R68 | RK3368 TV boxes from 2015. Rockchip shipped DTBs for the Orion R68 and similar boards | ❓ |
 | GeekBox | RK3368 box with a public Android 5.1 SDK and kernel source | ❓ |
