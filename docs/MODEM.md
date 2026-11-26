@@ -1,9 +1,9 @@
 # 4G modem (Fibocom NL668-EAU)
 
-> **Status: registers on LTE and sends SMS.** The modem powers up, its drivers load, it answers AT commands,
-> has a good signal and sees all three Australian carriers. With an active SIM it **registers on LTE and sends
-> SMS** (26 Nov 2026). Receiving SMS is unconfirmed (that SIM may be data-only) and mobile data hasn't been
-> tried. The Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS** (see
+> **Status: registers on LTE, sends SMS, mobile data works at the Linux level.** The modem powers up, its
+> drivers load, it answers AT commands, has a good signal and sees all three Australian carriers. With an
+> active SIM it **registers on LTE, sends SMS and carries data over PPP** (26 Nov 2026). Android itself doesn't
+> use that data link yet, and receiving SMS is unconfirmed (that SIM may be data-only). The Huawei ME909s fitted to some terminals has registered on LTE and **sent and received SMS** (see
 > [Other modems](#other-modems)).
 > **If you try it, please open an issue or comment on this repo and say what worked or what failed** (with your
 > carrier and the output of `device/modem/at-probe.sh`). That's how this gets from "should work" to "works".
@@ -105,11 +105,12 @@ only drives modems in its built-in list, and the NL668 isn't one of them (the Hu
 
 ## Mobile data
 
-Not working yet on either modem; this is the plan and what's still unknown. Two layers are needed:
+Two layers are needed. The first works on the NL668; the second is still to do.
 
 1. **A data link in Linux.** Possible routes, easiest first:
-   - **PPP dial-up** on one of the modem's `ttyUSB` ports (`ATD*99#` plus your carrier's APN). The kernel has
-     PPP built in; it needs a `pppd` binary on the system. Slowest, but no new driver.
+   - **PPP dial-up** on one of the modem's `ttyUSB` ports (`ATD*99***1#` uses context 1 and its APN). The
+     kernel has PPP built in and the image has `pppd` and `chat`. **Works on the NL668** (26 Nov 2026, see
+     [PPP test](#ppp-test) below).
    - **The modem's fast data interface:** QMI on `wwan0` for the NL668 (driver already binds), or Huawei NCM
      (`AT^NDISDUP`) for the ME909s, which needs `huawei_cdc_ncm` (not in this kernel; it would be built as a
      module like `bcmdhd.ko`) unless the modem can be switched to a mode the kernel already has (MBIM, ECM)
@@ -117,6 +118,24 @@ Not working yet on either modem; this is the plan and what's still unknown. Two 
 2. **Android using it.** Android 10 sends each app's traffic over networks its connectivity service knows
    about, so a link brought up by hand mostly isn't used by apps (root shell tools do use it). The proper
    fix is a RIL that drives the modem. See below: one is already running.
+
+### PPP test
+
+`device/modem/ppp-test.sh` dials PPP on `ttyUSB3`, pings out through that link only, then hangs up. Wi-Fi,
+Ethernet and Android's routing are left alone: it adds no default route, sends only traffic bound to `ppp0`
+out of it through a temporary rule, and removes the rule afterwards. Needs a registered SIM with an active data
+context (`AT+CGACT?` shows `1,1`).
+
+```sh
+adb push device/modem/ppp-test.sh /data/local/tmp/
+adb shell "su 0 sh /data/local/tmp/ppp-test.sh; cat /data/local/tmp/ppp-test.log"
+```
+
+On the NL668 (26 Nov 2026, LTE, `+CSQ` 21-25): `CONNECT` straight away, `ppp0` up with an address and DNS
+servers in 2 s, 1.1.1.1 and 8.8.8.8 answered every ping (0 % loss, 18-170 ms, typically 30 ms), and it hung
+up cleanly. The network accepted the APN stored in the modem (`AT+CGCONTRDP` shows the APN and addresses it
+handed out). pppd has to run in its own session (`setsid`): started straight from an adb shell, it gets SIGHUP
+when that shell closes and hangs up a second after connecting.
 
 **What the ROM already has** (checked on the reference terminal, 26 Nov 2026):
 
@@ -154,7 +173,7 @@ Citaq fits different modules to the same board. So far:
 
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
-| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE and **sends SMS**; receiving unconfirmed, data untested |
+| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE, **sends SMS**, **data over PPP** (Linux level, not yet in Android); receiving SMS unconfirmed |
 | Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS** (unit 2); mobile data untested |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
