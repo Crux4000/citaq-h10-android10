@@ -13,10 +13,11 @@ Failures and "only ran the checks" reports are just as welcome as successes.
 | 1 | Citaq H10-3 (ex-Menulog / Just Eat) | `20220926.JE.H10.5.1.0005` | RT5651 | AP6256 | ✅ Everything in [What works](../README.md#what-works) | @Crux4000 |
 | 2 | Citaq H10-3 (shipped with Android 6.0) | `POS_32-userdebug-20211101.1015` | ES8316 | AP6255 | ✅ Works | [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4) |
 | 3 | Citaq H10-3 (ex-Menulog, green pre-rebrand) | `20200303.JE.H10.5.1.0004` | RT5651 | AP6255 | ✅ Installed, running Android 10 | [netguycode/citaq#32](https://github.com/netguycode/citaq/issues/32) |
-| 4 | Citaq H10-3 (ex-Just Eat, on Android 6.0?) | `POS-userdebug-20211130.1225` | RT5651 | ❓ | ❓ Checks only. Different partition layout, needs 5.1.1 first | [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6) |
+| 4 | **Citaq V8** (portrait screen, on Android 6.0.1) | `POS-userdebug-20211130.1225` | RT5651 | AP6256 | ❓ Checks only. Needs V8 screen support and 5.1.1 first | [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6) |
 
 All four boards are marked **CTE-RK3368-V1.0**, have a 16 GB eMMC and a `userdebug` stock build, and
-units 1 and 2 carry byte-for-byte the same stock device tree. Citaq fits different sound, Wi-Fi/Bluetooth,
+units 1 and 2 carry byte-for-byte the same stock device tree. Unit 4 is a different model, a Citaq V8,
+built on the same board; its device tree differs from the H10-3's only in the screen settings. Citaq fits different sound, Wi-Fi/Bluetooth,
 eMMC and 4G modem chips to boards that look identical, and mixes them independently: unit 3 has unit 1's
 sound chip and unit 2's Wi-Fi module and 4G modem. The port detects or supports both sound chips and both
 Wi-Fi modules, and both modems power up and answer AT commands.
@@ -79,19 +80,30 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   than unit 2's). No SIM fitted, so the same `+CME ERROR: 10` results as unit 2 without a SIM.
 - **Result:** ✅ installed and running Android 10. On stock 5.1 the owner had Wi-Fi crashes.
 
-### 4: Citaq H10-3, ex-Just Eat, probably on Android 6.0
+### 4: Citaq V8, on Android 6.0.1
 
+- **Model:** a **Citaq V8**, not an H10-3. `ro.product.model` is `CITAQ V8`; an H10 on the same 6.0 image
+  reports `CITAQ H10`, so the name comes from the unit, not the firmware. Same main board as the H10-3.
+  The V8 has a smaller screen mounted in portrait, with the same 1024x768 resolution.
 - **Board:** CTE-RK3368-V1.0. eMMC 16 GB, Toshiba (`016GB0`, maker ID `0x11`). 2 GB RAM (MemTotal
   2,047,980 kB). A 32 GB SD card shows up as `mmcblk1`, which doesn't matter.
-- **Stock build:** `POS-userdebug-20211130.1225`, `userdebug`, model `CITAQ V8`, device `rk3368`. The date
-  matches Citaq's `RK3368_6.0_H10_20211130` Android 6.0 image (Android version not confirmed yet).
-- **Partition layout:** not the 5.1 one. System is 2 GiB and p16 is 12,574,720 KB, which puts p16's start
-  at about sector 5,619,712 instead of 12,443,648, so the install tools stop at their first check. The way
+- **Stock build:** `POS-userdebug-20211130.1225`, `userdebug`, Android 6.0.1, device `rk3368`. The date
+  matches Citaq's `RK3368_6.0_H10_20211130` Android 6.0 image.
+- **Stock device tree** (27 Nov 2026): identical to the H10-3's (power, touch, sound, Wi-Fi/Bluetooth,
+  backlight, battery, keys, modem power) except the screen: the panel runs at 71 MHz instead of 65 MHz
+  and is a 6-bit panel (the H10-3's is 8-bit). It is still described as 1024x768 landscape, so the
+  portrait view comes from a rotation setting in the stock firmware.
+- **What the port still needs for the V8:** a screen option in the DTB (71 MHz, 6-bit) and display
+  rotation with matching touch on Android 10. Citaq's 5.1.1 image (the route below) carries the H10's
+  screen settings, so **hold off on reflashing until V8 support is in**. No V8 5.1 image is known.
+- **Partition layout:** not the 5.1 one. System is 2 GiB and p16 starts at sector **5,627,904**
+  (12,574,720 KB long) instead of 12,443,648, so the install tools stop at their first check. The way
   through is what terminal 2 did: flash Citaq's 5.1.1 image first (see
-  [INSTALL.md step 1](INSTALL.md#1-check-the-terminal)).
+  [INSTALL.md step 1](INSTALL.md#1-check-the-terminal)). Back up the first **2748 MiB** before that.
 - **Checks on stock** (23 Nov 2026): `ili2105_ts/2-0041` (Ilitek touch), `rt5651/1-001a`, `rk818/0-001c`,
-  `syr82x/0-0040`. Same parts as terminal 3, all supported by the port.
-- **Wi-Fi/BT and 4G modem:** not known yet.
+  `syr82x/0-0040`. All supported by the port.
+- **Wi-Fi/BT:** AP6256, like unit 1 (from a photo). **4G modem:** Huawei ME909s-120 (label
+  `ME909s-120p V2`), like units 2 and 3.
 - **Result:** not installed yet.
 
 ## Not tried yet
@@ -106,7 +118,7 @@ slot) and [Tips for the next person](PORTING-NOTES.md#tips-for-the-next-person) 
 | Device | Why it's interesting | Status |
 |---|---|---|
 | **Citaq H10-3 with a different stock build** | The root method needs a `userdebug` build. Citaq's generic `POS_32-userdebug` build and the older Just Eat `…0004` build are `userdebug` too (see above), and so is Citaq's Android 6.0 `POS-userdebug` build, though it uses a different partition layout. Other builds are still unknown. | ⚠️ three more found |
-| Other Citaq models | Worth checking `ro.board.platform`. If it says `rk3368`, the port is a DTB away. | ❓ |
+| Other Citaq models | Worth checking `ro.board.platform`. If it says `rk3368`, the port is a DTB away. The V8 (unit 4 above) uses the H10-3's board with a different screen. | ⚠️ V8 reported |
 | Beelink i68 / Tronsmart Orion R68 | RK3368 TV boxes from 2015. Rockchip shipped DTBs for the Orion R68 and similar boards | ❓ |
 | GeekBox | RK3368 box with a public Android 5.1 SDK and kernel source | ❓ |
 | Zidoo X6 Pro, Ugoos UT4, Kingnovel R8, Rikomagic MK68 | RK3368 TV boxes | ❓ |
