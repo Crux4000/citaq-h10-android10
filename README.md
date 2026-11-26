@@ -117,7 +117,7 @@ tools/        PC side (Python 3, no Android SDK needed)
   dump_stock_dtb.py      copy a terminal's stock device tree off (read-only), to compare boards
 dtb/          device-tree scripts (PX5 EVB DTB -> Citaq H10-3), need dtc/fdtput
 patches/      byte patches for super: CarService null fix, odex hide, touch service
-device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf, modem/at-probe.sh
+device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf, modem/ (at-probe, sms-test, modem-data-probe)
 src/          static arm64 helpers (C) + thermalstub (Java); build.sh builds them
 firstlight/   optional kernel bring-up test (busybox initramfs) for adapting to other boards
 ha/           Home Assistant package: printer, LED patterns, app relaunch over adb

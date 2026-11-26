@@ -84,8 +84,8 @@ With a SIM in, these are the things to try. Please report back either way.
    It ends with `RESULT: sent` when the modem answers `+CMGS`. By hand it's `AT+CMGF=1`, then
    `AT+CMGS="+61400000000"`, then the text at the `>` prompt, ended with Ctrl-Z (byte 0x1A).
    Useful as a backup alert path for Home Assistant when Wi-Fi or the internet is down.
-3. **Data** over QMI on `wwan0`, for example with `qmicli`/`uqmi`-style tools (not on the device yet) or the
-   modem's own dial-up commands. Untested. Note that the kernel registers `cdc-wdm0`, but Android's ueventd
+3. **Data:** untested, see [Mobile data](#mobile-data) below. On the NL668 that means QMI on `wwan0`, for
+   example with `qmicli`/`uqmi`-style tools (not on the device yet) or the modem's own dial-up commands. Note that the kernel registers `cdc-wdm0`, but Android's ueventd
    doesn't create `/dev/cdc-wdm0`, so QMI tools would first need the node made by hand (`mknod`, major/minor
    from `/sys/class/usbmisc/cdc-wdm0/dev`).
 
@@ -95,6 +95,35 @@ modem. Stock Citaq's `ril-nl668.so` is for Android 5 and 32-bit. The PX5 ROM rep
 `gsm.version.ril-impl = RIL_RK_DATA_V10.0`, Rockchip's generic RIL for USB 3G/4G dongles, but its daemon isn't
 running, and whether it supports the NL668 is unknown. That's a possible route to Android-level mobile data for
 anyone with a SIM to test. Talking to the modem directly over AT/QMI is the practical route for now.
+
+## Mobile data
+
+Not working yet on either modem; this is the plan and what's still unknown. Two layers are needed:
+
+1. **A data link in Linux.** Possible routes, easiest first:
+   - **PPP dial-up** on one of the modem's `ttyUSB` ports (`ATD*99#` plus your carrier's APN). The kernel has
+     PPP built in; it needs a `pppd` binary on the system. Slowest, but no new driver.
+   - **The modem's fast data interface:** QMI on `wwan0` for the NL668 (driver already binds), or Huawei NCM
+     (`AT^NDISDUP`) for the ME909s, which needs `huawei_cdc_ncm` (not in this kernel; it would be built as a
+     module like `bcmdhd.ko`) unless the modem can be switched to a mode the kernel already has (MBIM, ECM)
+     with `AT^SETPORT`. Check Huawei's AT manual before changing ports: a wrong setting can hide the AT port.
+2. **Android using it.** Android 10 sends each app's traffic over networks its connectivity service knows
+   about, so a link brought up by hand mostly isn't used by apps (root shell tools do use it). The proper
+   fix is a running RIL: the PX5 image carries Rockchip's generic USB-dongle RIL (`RIL_RK_DATA_V10.0`), but
+   `rild` isn't started. If it supports the modem, Settings → Mobile network would work normally.
+
+**To help, run `device/modem/modem-data-probe.sh`** and post the log in an issue. It's read-only (it only
+reads system files and sends AT queries; no dialling or mode changes) and works with or without a SIM. It
+lists the modem's USB interfaces and their drivers, the dial-up and RIL pieces present in the image, the RIL
+properties and init entries, and the modem's data-related AT settings:
+
+```sh
+adb push device/modem/modem-data-probe.sh /data/local/tmp/
+adb shell "su 0 sh /data/local/tmp/modem-data-probe.sh; cat /data/local/tmp/modem-data-probe.log"
+```
+
+Long numbers show as `[hidden]` and IP addresses in the data-context lines as `[ip]`; check the log before
+posting anyway, and paste it inside a code block.
 
 ## Other modems
 
@@ -152,8 +181,8 @@ Test
 SIM's storage doesn't fill up. Mobile data is still untested.
 
 For data the kernel has `cdc_ether`, `cdc_ncm` and `cdc_mbim`, but not Huawei's own `huawei_cdc_ncm`, so
-mobile data on the ME909s is untested and may need a different route. If you have one, please run
-`at-probe.sh` and open an issue with the log. The script shows the IMEI and other long numbers as
+mobile data on the ME909s may need a different route (see [Mobile data](#mobile-data)). If you have one,
+please run `at-probe.sh` and `modem-data-probe.sh` and open an issue with the logs. The script shows the IMEI and other long numbers as
 `[hidden]`, but check the log before posting anyway, and paste it inside a ```` ``` ```` code block so GitHub
 keeps the layout.
 
