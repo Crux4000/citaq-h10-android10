@@ -1,5 +1,7 @@
 # Android 10 on the Citaq H10-3 POS terminal (RK3368), with GPU acceleration
 
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/crux40000)
+
 The Citaq H10-3 is a 10" Android point-of-sale terminal with a built-in 80 mm receipt printer.
 Ex-Menulog / Just Eat units are turning up free or cheap, and they make a great wall kiosk, but they
 ship with **Android 5.1 from 2016**. Modern browsers and the Home Assistant app no longer run on it.
@@ -228,6 +230,10 @@ own risk**, and you should keep the full eMMC backup somewhere safe.
   and the AP6255 Wi-Fi/Bluetooth module. They also pinned down the AP6255 Wi-Fi drop and proved the firmware that
   fixes it, and their heat report led to the safer default CPU limit. Every terminal after the
   first installs more easily because of it. Thank you!
+
+## Support
+
+This project is free and always will be. If it saved a terminal from landfill or saved you some time, you can [buy me a coffee](https://ko-fi.com/crux40000). It goes towards test hardware and late-night debugging.
 
 ## Licence
 
