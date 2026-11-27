@@ -120,7 +120,7 @@ tools/        PC side (Python 3, no Android SDK needed)
   rkimg_peek.py          look inside a Citaq/Rockchip firmware zip or update.img (version, partitions, screen, U-Boot)
 dtb/          device-tree scripts (PX5 EVB DTB -> Citaq H10-3), need dtc/fdtput
 patches/      byte patches for super: CarService null fix, odex hide, touch service
-device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf, modem/ (at-probe, sms-test, call-test, modem-data-probe, ppp-test)
+device/       on-terminal scripts: citaq-boot.sh (the boot hook), debloat/restore, bt/bt_vendor.conf, modem/ (at-probe, sms-test, call-test, call-probe, modem-data-probe, ppp-test)
 src/          static arm64 helpers (C) + thermalstub (Java); build.sh builds them
 firstlight/   optional kernel bring-up test (busybox initramfs) for adapting to other boards
 ha/           Home Assistant package: printer, LED patterns, app relaunch over adb

@@ -340,6 +340,23 @@ switch back. It checks the MD5 before and after patching, runs on RT5651 termina
 leave it off, `adb shell "su 0 touch /data/citaq/audio-44k"` and reboot. `adb shell cat /data/citaq/audio/audio.log`
 should say `48 kHz HAL mounted`, and logcat shows `AudioHardwareTiny: out->SampleRate : 48000`.
 
+### Other hardware: help wanted
+
+So far calls are proven on one combination only: **Fibocom NL668 + RT5651**. On an **RT5651 with the Huawei
+ME909s** it may well work too (the audio lines are standard mini PCIe pins), but the modem's audio format and its
+VoLTE setup may differ. **ES8316** terminals are probably out (one audio port only), unless your board turns out to
+be wired differently. To help work it out for your hardware, run the read-only probe and post its log in an issue.
+It makes no calls and changes no settings (it only reads system files and sends AT queries), and it hides
+long numbers, IP addresses and cell IDs:
+
+```sh
+adb push device/modem/call-probe.sh /data/local/tmp/
+adb shell "su 0 sh /data/local/tmp/call-probe.sh; cat /data/local/tmp/call-probe.log"
+```
+
+On an ES8316 terminal, a sharp photo of the board around the modem's mini PCIe slot (look for R217, R222, R223 and
+R246, or empty pads with those labels) helps too.
+
 ### Testing calls
 
 ```sh
