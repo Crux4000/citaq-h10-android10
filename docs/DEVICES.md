@@ -126,7 +126,7 @@ slot) and [Tips for the next person](PORTING-NOTES.md#tips-for-the-next-person) 
 | Device | Why it's interesting | Status |
 |---|---|---|
 | **Citaq H10-3 with a different stock build** | The root method needs a `userdebug` build. Citaq's generic `POS_32-userdebug` build and the older Just Eat `…0004` build are `userdebug` too (see above), and so is Citaq's Android 6.0 `POS-userdebug` build, though it uses a different partition layout. Other builds are still unknown. | ⚠️ three more found |
-| Other Citaq models | Worth checking `ro.board.platform`. If it says `rk3368`, the port is a DTB away. The V8 (unit 4 above) uses the H10-3's board with a different screen. | ⚠️ V8 reported |
+| Other Citaq models | Worth checking `ro.board.platform`. If it says `rk3368`, the port is a DTB away. The V8 (unit 4 above) uses the H10-3's board with a different screen. Watch the name: Citaq kept "H10" for its 10" all-in-one POS across chips, and only the **H10-3** is RK3368. The **H10-1 and H10-2 are RK3288**, and so is the Android 8 "H10" (its firmware won't help this port; [#7](https://github.com/Crux4000/citaq-h10-android10/issues/7)). | ⚠️ V8 reported |
 | Beelink i68 / Tronsmart Orion R68 | RK3368 TV boxes from 2015. Rockchip shipped DTBs for the Orion R68 and similar boards | ❓ |
 | GeekBox | RK3368 box with a public Android 5.1 SDK and kernel source | ❓ |
 | Zidoo X6 Pro, Ugoos UT4, Kingnovel R8, Rikomagic MK68 | RK3368 TV boxes | ❓ |

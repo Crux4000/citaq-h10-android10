@@ -153,9 +153,13 @@ Things to know:
   `at-probe.sh`, `sms-test.sh` and an SMS bridge on that port will clash with it. That's why it's opt-in. In
   practice (ME909s, 26 Nov 2026) `sms-test.sh` on `ttyUSB2` still sends the text, but the RIL reads the same
   port and can take the modem's `+CMGS` answer, so the script times out and can't say whether it was sent; the
-  script now warns about this. On the NL668 the QMI option below frees `ttyUSB3` for them. On the ME909s
-  `ttyUSB3` answers AT while mobile data is on (26 Nov 2026), so `PORT=/dev/ttyUSB3` should work there too
-  (SMS on it not confirmed yet). Otherwise leave mobile data off, or stop the RIL first
+  script now warns about this. On the NL668 the QMI option below frees `ttyUSB3` for them. The ME909s has
+  no second command port: its `ttyUSB3` answers a bare `AT` with `OK` but returns `ERROR` to every real
+  command (`ATE0`, `ATI`, `AT+CPIN?`, `AT+CMGF=1`; 26 and 27 Nov 2026), and `ttyUSB1`/`ttyUSB4` don't answer
+  at all. `ttyUSB2` (interface protocol `0x12`) is its only command port, so on the ME909s it's SMS *or*
+  mobile data. A `ttyUSB2` send with the RIL running can still go through (27 Nov 2026, `+CMGS` seen), but
+  the script and the RIL are both reading the port, so whether the script sees the answer is luck. Otherwise
+  leave mobile data off, or stop the RIL first
   (`adb shell "su 0 setprop ctl.stop vendor.ril-daemon"`, `ctl.start` to bring it back); stopping it while
   connected can leave the modem's data call open until the next reboot.
 - **Speed:** PPP over a serial port. Fine as a backup link for Home Assistant.
@@ -195,7 +199,13 @@ contact and the RIL's `AT+CGACT=0,1` before each connect are suspects; the RIL a
 that sends `AT+CFUN=1,1`, a full modem reboot). `dmesg | grep "usb 1-1.1: new"` lists them (the first line is
 the normal one at boot); please report if you see it too. An ME909s with mobile data on (26 Nov 2026) reset
 four times in the first four minutes after boot, then not at all over the next half hour, including while
-mobile data was switched off and on.
+mobile data was switched off and on. The next morning the same unit got stuck in a loop instead (up ~25 s,
+drops off USB, back ~5 s later, RIL restarted each time) and kept going until a full power-off; after a cold
+start it reset once (~43 s after boot), connected at ~67 s and stayed up. What set the loop off isn't known.
+One suspect: the boot hook only drives the modem's power pins high and never power-cycles it, so a soft
+`adb reboot` leaves the modem running in whatever state it was in. If you see the loop, grab the radio log
+before power-cycling (`logcat -b radio -d`, long numbers masked as in `modem-data-probe.sh`) and say whether
+the boot before it was a soft reboot or a cold start.
 
 NL668 only; the ME909s has no QMI (its fast interface is a CDC Ethernet one, not wired up yet). Undo with
 `rm /data/citaq/mobile-data-qmi` and a reboot, which goes back to PPP.
@@ -261,7 +271,7 @@ Citaq fits different modules to the same board. So far:
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
 | Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE, **sends SMS**, **Android mobile data** (opt-in, PPP or QMI); receiving SMS unconfirmed |
-| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS**, **Android mobile data** (opt-in, PPP; unit 2) |
+| Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS**, **Android mobile data** (opt-in, PPP; unit 2). Only one command port (`ttyUSB2`), so SMS and mobile data can't run side by side |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,
 [#4](https://github.com/Crux4000/citaq-h10-android10/issues/4)) it came up under the `option` driver and

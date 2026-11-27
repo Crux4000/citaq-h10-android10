@@ -39,7 +39,7 @@ if grep -a -q '^+CMGS' $T; then
 elif grep -a -q -E '^\+CMS ERROR|^ERROR' $T; then
   echo "RESULT: not sent (see the ERROR above)"
 elif [ -n "$S" ]; then
-  echo "RESULT: no answer seen, probably taken by the RIL sharing $P: check the phone (try PORT=/dev/ttyUSB3: free on the NL668 with QMI, and answers AT on the ME909s)"
+  echo "RESULT: no answer seen, probably taken by the RIL sharing $P: check the phone (NL668 with QMI: use PORT=/dev/ttyUSB3; ME909s: ttyUSB2 is its only command port, so stop the RIL to be sure)"
 else
   echo "RESULT: timed out, no answer from the modem"
 fi
