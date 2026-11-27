@@ -99,7 +99,10 @@ The steps below. Please report back either way.
 
 **Android's mobile data needs a RIL** (radio interface layer) that knows the modem; without one, Settings →
 Mobile network is greyed out even when the modem has registered. Stock Citaq's `ril-nl668.so` is for
-Android 5 and 32-bit. The PX5 ROM has `RIL_RK_DATA_V10.0`, Rockchip's generic data-only RIL for USB 3G/4G
+Android 5 and 32-bit. Citaq's Android 6 image (`RK3368_6.0_H10_20211130`) lists 64-bit
+`libreference-ril-nl668.so` and `libreference-ril-huawei.so` in its `build.prop`, proper RILs for both
+modems these terminals ship with. Whether a 2016 Android 6 RIL loads in Android 10's `rild` (and would give
+SMS through Android) is untested; it's a lead, not a plan. The PX5 ROM has `RIL_RK_DATA_V10.0`, Rockchip's generic data-only RIL for USB 3G/4G
 dongles, which only drives modems in its built-in list. Neither the NL668 nor the ME909s is in that list as
 shipped; the boot hook can patch them in (see [Android mobile data](#android-mobile-data-opt-in)). SMS is
 not handled by that RIL at all, so SMS stays on AT commands.

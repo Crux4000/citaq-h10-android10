@@ -88,7 +88,11 @@ Wi-Fi modules, and both modems power up and answer AT commands.
   `ro.sf.hwrotation=90`). It runs exactly the same Android 6 build as Citaq's `RK3368_6.0_H10_20211130`
   image, but that image (and an H10 running it) says `CITAQ H10` and `180`. The file dates suggest Citaq
   made a V8 version of the same firmware (27 Nov 2026, [#6](https://github.com/Crux4000/citaq-h10-android10/issues/6)).
-  Reflashing replaces this file, so **`adb pull /system/build.prop` and keep it with your backup** first.
+  The V8's pulled `build.prop` confirms it: same build, and only those two lines differ from the image's.
+  `/system/xbin/add-property-tag`, the only stock file that mentions `build.prop`, turned out to be the stock
+  Android build tool that appends a tag to `ro.build.fingerprint`, not a Citaq tool for stamping the model,
+  so nothing on the unit rewrote it. The port doesn't read `build.prop` (the V8 option goes by the DTB), but
+  reflashing replaces it, so **`adb pull /system/build.prop` and keep it with your backup** first.
 - **Board:** CTE-RK3368-V1.0. eMMC 16 GB, Toshiba (`016GB0`, maker ID `0x11`). 2 GB RAM (MemTotal
   2,047,980 kB). A 32 GB SD card shows up as `mmcblk1`, which doesn't matter.
 - **Stock build:** `POS-userdebug-20211130.1225`, `userdebug`, Android 6.0.1, device `rk3368`. The date
