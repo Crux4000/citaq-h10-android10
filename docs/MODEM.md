@@ -1,6 +1,7 @@
 # 4G modem (Fibocom NL668-EAU)
 
-> **Status: registers on LTE, sends SMS, mobile data works at the Linux level.** The modem powers up, its
+> **Status: registers on LTE, sends SMS, mobile data works, and voice calls work with audio both ways (28 Nov 2026,
+> see [Voice calls](#voice-calls)).** The modem powers up, its
 > drivers load, it answers AT commands, has a good signal and sees all three Australian carriers. With an
 > active SIM it **registers on LTE, sends SMS and gives Android mobile data** (opt-in, see
 > [Android mobile data](#android-mobile-data-opt-in), 26 Nov 2026). Receiving SMS is unconfirmed (that SIM may
@@ -267,13 +268,104 @@ adb shell "su 0 sh /data/local/tmp/modem-data-probe.sh; cat /data/local/tmp/mode
 Long numbers show as `[hidden]` and IP addresses in the data-context lines as `[ip]`; check the log before
 posting anyway, and paste it inside a code block.
 
+## Voice calls
+
+> **Status (28 Nov 2026): calls work, with audio both ways, on the reference terminal (Fibocom NL668 +
+> RT5651 sound chip, ALDI Mobile SIM on Telstra).** The caller's voice comes out of the kiosk speakers at normal
+> hands-free quality, and sound from the kiosk goes down the line (tested with a test tone). Android's own sound
+> keeps working after a call. **A microphone is untested:** if you have a phone headset with a mic (4-pole 3.5 mm
+> plug), please run `call-test.sh` in `mic` mode (below) and open an issue with the result.
+
+There's no phone app: the ROM's RIL is data-only, so Android doesn't know about calls. Calls are placed,
+answered and hung up with AT commands (for example from Home Assistant over adb), and the call audio is routed
+through the sound chip by script. Three things make it work:
+
+### 1. VoLTE (IMS) on the modem
+
+Australia's 3G networks are gone, so calls need VoLTE, and VoLTE needs an IMS data context. The NL668 ships with
+only the internet context, and without IMS an `ATD` sits at "dialling" (`+CLCC` stat 2) and the other phone
+never rings. Add it once (it's stored in the modem):
+
+```
+AT+CGDCONT=2,"IPV4V6","ims"
+AT$QCPDPIMSCFGE=2,1,0,1
+AT+CFUN=1,1
+```
+
+The last command restarts the modem. About 40 s later `AT+CGACT?` shows `+CGACT: 2,1` (IMS context up). Then
+`ATD+614xxxxxxxx;` rings the number, `AT+CLCC` shows stat `0` once it's answered, and `ATH` hangs up.
+`+CAVIMS: 1` only means the network offers VoLTE, not that this modem is registered for it. Mobile data uses
+context 1, so it isn't affected. To undo: `AT+CGDCONT=2`, then `AT+CFUN=1,1`. Telstra (through ALDI Mobile)
+accepted calls from this module; other carriers may only allow VoLTE from approved devices, so please report
+yours. `AT+CLCC` also lists one or two mode-1 entries (`+CLCC: n,1,0,1,0,"",128`): those are the data/IMS
+sessions, not calls.
+
+### 2. The audio path
+
+No hardware change is needed. The modem's PCM lines (mini PCIe pins 45/47/49/51: clock, out, in, sync) run through
+four 33 Ω resistors (R217, R222, R223, R246) to the RT5651's **second audio port** (IF2). The modem is the PCM
+master: 2.048 MHz clock, 8 kHz sync, 16-bit mono, 1.8 V. The ES8316 has only one audio port, so **ES8316 terminals
+can't do call audio** (unless someone finds otherwise).
+
+`device/modem/call-test.sh` sets the sound chip up like this, all before dialling:
+
+| Setting | Value | Why |
+|---|---|---|
+| IF2 format (reg `0x71`) | `0x8082`: slave, PCM mode A, bit clock inverted, 16 bit | PCM A without the inversion gives distorted audio; PCM B gives noise |
+| `RT5651 ASRC Switch`, `IF2 ASRC Switch` | Enable, on | sample-rate conversion between the modem's 8 kHz and the chip's 48 kHz side; clock from PLL1 (2 × MCLK). Use these driver controls: they also set register `0xFA` and private register `0xB4`, and setting only the clock registers by hand gives a garbled ("frog") voice |
+| clock dividers (reg `0x73`) | `0x1604` | 48 kHz on the first port, 2.048 MHz (256 × 8 kHz) on the second |
+| power/filters | `0x61` \|= `0x4000`, `0x62` \|= `0xCC00`, `0x84` \|= `0x4800` | second port powered, its filters and ADC rate conversion on |
+| caller → speakers | `DD MIXR DAC R2`, `Stereo DAC MIXL/R DAC L2/R2` on | the caller is mixed into normal playback (and into the right channel of a recording) |
+| kiosk → caller | `IF2 ADC` = `IF1 ADC1`, both `IF2 Data Switch`es = `left copy to right`, `DD MIXL DAC L1` + `Stereo1 ADC MIXL/R ADC2` on | the caller hears whatever is played on the first port (left channel), plus the mic in `mic` mode (`RECMIX BST1`, `Stereo1 ADC MIX ADC1`, MICBIAS1) |
+
+Rules learned the hard way: **change nothing in the sound chip or the PCM format while a call is up** (it has
+reset the modem), and keep a playback stream open on the first port during the call (the script plays a tone or
+silence), or the chip's clocks stop. `AT+CLVL=7` (default 4) makes the caller about four times louder. There's
+no echo cancellation, so a mic near the speakers will echo; a headset on the jack mutes the speakers.
+
+### 3. Android's sound runs at 48 kHz (boot hook section 2d)
+
+Calls run the audio port at 48 kHz, and Android's audio driver plays at 44.1 kHz. On this kernel the audio clock
+can switch from the 44.1 kHz family to 48 kHz **but not back**: after anything plays at 48 kHz, every 44.1 kHz open
+fails (`dmesg`: `asoc-simple-card wm8978-sound: ASoC: machine hw_params failed: -22`), `audioserver` restarts over
+and over and sound glitches or stops until a reboot. You can reproduce it without a call: `tinyplay` a 44.1 kHz
+file, then a 48 kHz one, then the 44.1 kHz one again.
+
+Android's audio driver (`/vendor/lib/hw/audio.primary.rk30board.so`) has 44.1 kHz built in and ignores the rate
+in `audio_policy_configuration.xml`. So the boot hook (section `2d`) patches a copy of it: the five stereo stream
+configs (40-byte `pcm_config` structs at file offsets `0x24004`, `0x2402c`, `0x24054`, `0x240a4`, `0x240cc`; rate
+at +4) go from 44100 to 48000, and the copy is bind-mounted over the original, as the hook already does for the
+RIL. Android then plays everything at 48 kHz (it resamples 44.1 kHz content itself) and the clock never has to
+switch back. It checks the MD5 before and after patching, runs on RT5651 terminals only, and is on by default; to
+leave it off, `adb shell "su 0 touch /data/citaq/audio-44k"` and reboot. `adb shell cat /data/citaq/audio/audio.log`
+should say `48 kHz HAL mounted`, and logcat shows `AudioHardwareTiny: out->SampleRate : 48000`.
+
+### Testing calls
+
+```sh
+adb push device/modem/call-test.sh /data/local/tmp/
+adb shell "su 0 sh /data/local/tmp/call-test.sh +61400000000 60 tone"
+```
+
+Use your own mobile number. It costs a normal call. Modes:
+
+- `tone` (default): the kiosk sends a steady hum. You should hear it on your phone, and your voice from the kiosk.
+- `silence`: no hum, to judge your voice on its own.
+- `mic` (**untested**): a headset mic on the 3.5 mm jack goes down the line. Plug in a phone headset (4-pole);
+  `MICBOOST=0..8` sets the mic gain (default 2), for example `MICBOOST=4 sh call-test.sh ...`.
+
+The call ends after the given number of seconds or when you hang up. The script picks a free AT port (`ttyUSB2`,
+or `ttyUSB3` when mobile data's RIL holds `ttyUSB2`), restores the sound chip afterwards and prints a short
+report with phone numbers hidden. **Please report:** what you heard at each end, the report lines, your
+carrier, and whether a video still plays with sound after the test.
+
 ## Other modems
 
 Citaq fits different modules to the same board. So far:
 
 | Module | Seen on | Status on Android 10 |
 |---|---|---|
-| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE, **sends SMS**, **Android mobile data** (opt-in, PPP or QMI); receiving SMS unconfirmed |
+| Fibocom NL668-EAU | unit 1 in [DEVICES.md](DEVICES.md) | ⚠️ registers on LTE, **sends SMS**, **Android mobile data** (opt-in, PPP or QMI), **voice calls with audio** (VoLTE, RT5651 terminals, mic untested); receiving SMS unconfirmed |
 | Huawei ME909s-120 | units 2 and 3 | ⚠️ powers up and answers AT commands (units 2 and 3), reads the SIM, **registers on LTE**, **sends and receives SMS**, **Android mobile data** (opt-in, PPP; unit 2). Only one command port (`ttyUSB2`), so SMS and mobile data can't run side by side |
 
 The ME909s sits in the same mini PCIe slot, and the boot hook powers it the same way. On unit 2 (23 Nov 2026,

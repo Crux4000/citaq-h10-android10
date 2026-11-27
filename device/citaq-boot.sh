@@ -213,6 +213,37 @@ bl_inv=; [ -f /data/citaq/backlight-invert ] && bl_inv=-i
 #     hardware DAC volume (RT5651 or ES8316, it checks which) - this build applies no software volume
 #     (the car MCU normally did).
 [ -x /data/citaq/volshim ] && /data/citaq/volshim volume_music_speaker 15 > /data/citaq/volshim.log 2>&1 &
+# 2d) Audio at 48 kHz. The PX5 audio HAL (/vendor/lib/hw/audio.primary.rk30board.so, the 32-bit one the
+#     HAL service loads) hard-wires its stream configs to 44.1 kHz and ignores audio_policy_configuration.xml.
+#     On this kernel the I2S MCLK can switch from the 44.1 kHz family to 48 kHz but not back: after any
+#     48 kHz stream (tinyplay, modem call audio) every 44.1 kHz open fails ("machine hw_params failed: -22"),
+#     audioserver crash-loops and sound glitches until a reboot. Patching the five stereo pcm_config rates
+#     (.data, 40-byte structs: main/deep-buffer out, inputs) to 48000 keeps the card on one clock family;
+#     AudioFlinger resamples 44.1 kHz content. RT5651 terminals only (tested there; the ES8316 needs no call
+#     audio and its sound already works). Opt-out: create /data/citaq/audio-44k.
+if [ "$codec" = rt5651 ] && [ ! -f /data/citaq/audio-44k ]; then
+  V=/vendor/lib/hw/audio.primary.rk30board.so; D=/data/citaq/audio; A=$D/audio.primary.rk30board.so
+  mkdir -p $D
+  if [ "$(md5sum $V | cut -d' ' -f1)" = cace49ef2deae87647f668053baaa9ec ]; then
+    cp $V $A.tmp
+    for o in 0x24008 0x24030 0x24058 0x240a8 0x240d0; do
+      printf '\200\273\000\000' | dd of=$A.tmp bs=1 seek=$((o)) conv=notrunc 2>/dev/null
+    done
+    if [ "$(md5sum $A.tmp | cut -d' ' -f1)" = 528f13ab6a710c852ad6d92dd46823e2 ]; then
+      mv $A.tmp $A; chmod 644 $A; chcon u:object_r:vendor_file:s0 $A
+      if mount -o bind $A $V; then
+        # Already running (hook later than the HAL)? Restart it and audioserver so the patched copy is loaded.
+        [ "$(getprop init.svc.vendor.audio-hal-2-0)" = running ] && setprop ctl.restart vendor.audio-hal-2-0
+        [ "$(getprop init.svc.audioserver)" = running ] && setprop ctl.restart audioserver
+        echo "$(date) audio: 48 kHz HAL mounted" > $D/audio.log
+      fi
+    else
+      rm -f $A.tmp; echo "$(date) audio: patch result has the wrong MD5, not applied" > $D/audio.log
+    fi
+  else
+    echo "$(date) audio: $V is not the known PX5 HAL (MD5 differs), not patched" > $D/audio.log
+  fi
+fi
 # 3) POS hardware for Home Assistant (same paths the stock 5.1 kiosk setup used):
 #    printer /dev/ttyS1 (UART1, 115200, CTS), LEDs red = gpio124, blue = gpio106 (off at boot),
 #    gpio81 (GPIO2_C1) driven high at boot exactly like the stock init-gpios (31=1, 81=1, 106=0, 124=0).
