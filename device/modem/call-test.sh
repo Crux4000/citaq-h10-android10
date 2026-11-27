@@ -39,9 +39,9 @@ log "AT port $P, mode $MODE, up to $SECS s"
 
 # --- what we play to the codec's first port (also keeps the playback side clocked) ----------------------
 if [ $MODE = tone ]; then
-  W=$T/call-test-400.wav
-  if [ ! -s $W ]; then             # one period of 400 Hz at 48 kHz stereo, doubled 15 times (about 82 s)
-    echo AAAAAEUDRQOIBogGxgnGCf4M/gwtEC0QUBNQE2UWZRZrGWsZXxxfHD8fPx8KIgoivCS8JFUnVSfSKdIpMSwxLHIuci6SMJIwkDKQMmo0ajQgNiA2sDewNxg5GDlZOlk6cDtwO148XjwiPSI9uz27PSg+KD5qPmo+gD6APmo+aj4oPig+uz27PSI9Ij1ePF48cDtwO1k6WToYORg5sDewNyA2IDZqNGo0kDKQMpIwkjByLnIuMSwxLNIp0ilVJ1UnvCS8JAoiCiI/Hz8fXxxfHGsZaxllFmUWUBNQEy0QLRD+DP4MxgnGCYgGiAZFA0UDAAAAALv8u/x4+Xj5OvY69gLzAvPT79PvsOyw7Jvpm+mV5pXmoeOh48HgweD23fbdRNtE26vYq9gu1i7Wz9PP047RjtFuz27PcM1wzZbLlsvgyeDJUMhQyOjG6ManxafFkMSQxKLDosPewt7CRcJFwtjB2MGWwZbBgMGAwZbBlsHYwdjBRcJFwt7C3sKiw6LDkMSQxKfFp8XoxujGUMhQyODJ4MmWy5bLcM1wzW7Pbs+O0Y7Rz9PP0y7WLtar2KvYRNtE2/bd9t3B4MHgoeOh45Xmleab6ZvpsOyw7NPv0+8C8wLzOvY69nj5ePm7/Lv8 | base64 -d > $T/b.raw
+  W=$T/call-test-400q.wav
+  if [ ! -s $W ]; then             # one period of 400 Hz (quarter scale) at 48 kHz stereo, doubled 15 times (82 s)
+    echo AAAAAKIBogFEA0QD4wTjBH8GfwYWCBYIqAmoCTILMgu1DLUMLw4vDp8Pnw8FEQURXhJeEqoTqhPpFOkUGBYYFjkXORdJGEkYSBlIGTUaNRoQGxAb2BvYG4wcjBwsHSwduB24HS8eLx6RHpEe3R7dHhQfFB81HzUfQB9AHzUfNR8UHxQf3R7dHpEekR4vHi8euB24HSwdLB2MHIwc2BvYGxAbEBs1GjUaSBlIGUkYSRg5FzkXGBYYFukU6RSqE6oTXhJeEgURBRGfD58PLw4vDrUMtQwyCzILqAmoCRYIFgh/Bn8G4wTjBEQDRAOiAaIBAAAAAF7+Xv68/Lz8Hfsd+4H5gfnq9+r3WPZY9s70zvRL80vz0fHR8WHwYfD77vvuou2i7VbsVuwX6xfr6Ono6cfox+i357fnuOa45svly+Xw5PDkKOQo5HTjdOPU4tTiSOJI4tHh0eFv4W/hI+Ej4ezg7ODL4MvgwODA4Mvgy+Ds4OzgI+Ej4W/hb+HR4dHhSOJI4tTi1OJ043TjKOQo5PDk8OTL5cvluOa45rfnt+fH6Mfo6Ono6RfrF+tW7Fbsou2i7fvu++5h8GHw0fHR8UvzS/PO9M70WPZY9ur36veB+YH5Hfsd+7z8vPxe/l7+ | base64 -d > $T/b.raw
     i=0; while [ $i -lt 15 ]; do cat $T/b.raw $T/b.raw > $T/b2.raw; mv $T/b2.raw $T/b.raw; i=$((i + 1)); done
     echo UklGRiQA8ABXQVZFZm10IBAAAAABAAIAgLsAAADuAgAEABAAZGF0YQAA8AA= | base64 -d > $W; cat $T/b.raw >> $W; rm -f $T/b.raw
   fi
@@ -145,7 +145,11 @@ tr -d '\r' < $OUT | grep -av '^$' | grep -avE '^\+CLCC: [0-9],[01],[0-9],[01]|^O
   sed -E 's/\+[0-9]{6,}/[hidden]/g; s/"[0-9]{6,}"/"[hidden]"/g' | uniq | tail -8
 SZ=$(wc -c < $REC 2>/dev/null); SZ=${SZ:-44}; NS=$(( (SZ - 44) / 192000 ))
 if [ $NS -gt 0 ]; then
-  HEARD=$(od -An -v -t d2 -j 44 $REC | awk '{for(i=1;i<=NF;i++){k++; if(!(k%2)){v=$i<0?-$i:$i; s=int(k/96000); if(v>m[s])m[s]=v}}} END{for(s in m) if(m[s]>500)n++; print n+0}')
+  HEARD=0; s=0                     # look at 0.1 s of each second (right channel = caller)
+  while [ $s -lt $NS ]; do
+    m=$(od -An -v -t d2 -j $((44 + s * 192000)) -N 19200 $REC | awk '{for(i=2;i<=NF;i+=2){v=$i<0?-$i:$i; if(v>m)m=v}} END{print m+0}')
+    [ "$m" -gt 500 ] && HEARD=$((HEARD + 1)); s=$((s + 1))
+  done
   log "recorded $NS s; caller audio present in $HEARD of them ($REC)"
 fi
 log "done. Please report: could you hear the kiosk (tone/mic) on your phone, and the caller on the kiosk?"
